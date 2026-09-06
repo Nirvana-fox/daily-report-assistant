@@ -1,0 +1,59 @@
+# Rust
+target/
+Cargo.lock.bak
+
+# Node / Vite
+node_modules/
+dist/
+*.tsbuildinfo
+vite.config.d.ts
+vite.config.js
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Project local
+data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+.report-assistant/
+
+# NAS 服务端本地数据
+nas-server/data/
+nas-server/test-data*/
+
+# 本地部署产物
+*.exe
+*.lnk
+*.log
+Thumbs.db
+
+# Local config
+*.local.yml
+report-assistant.yml
+config.yml
+.env
+.env.*
+*.key
+*.pem
+
+# —— 隐私：本地/私人内容永不入库 ——
+发布到GitHub.bat
+releases/
+*.lnk
+*私密*
+*private*
+screenshots/
+*.db
+
+# Build logs
+tauri-build.log

@@ -1,0 +1,256 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-bg text-ink font-sans antialiased;
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei',
+      'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* 防止整窗被原生选中 */
+    user-select: none;
+  }
+  /* 文本可选 */
+  input, textarea, [contenteditable=true], .markdown-body, .selectable {
+    user-select: text;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #C6E5C9;
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #8FC893;
+  }
+}
+
+@layer components {
+  /* 像素风卡片 */
+  .card {
+    @apply bg-card rounded-card border border-border p-5 transition-all duration-200;
+    box-shadow: 0 1px 0 0 rgb(47 62 47 / 0.04), 0 1px 3px rgb(47 62 47 / 0.06);
+  }
+  .card-hover {
+    @apply hover:-translate-y-px hover:shadow-soft;
+  }
+
+  .input-base {
+    @apply block w-full rounded-pix border border-border bg-white px-3 py-2 text-sm text-ink
+           placeholder:text-ink2/60 focus:border-primary focus:outline-none focus:ring-2
+           focus:ring-primary/20 disabled:bg-bg disabled:text-ink2 transition-all;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-pix
+           font-medium transition-all duration-150 disabled:opacity-50
+           disabled:cursor-not-allowed select-none
+           active:translate-y-px;
+  }
+  .btn-primary {
+    @apply btn bg-primary text-white border border-primary-600 shadow-pix
+           hover:bg-primary-600 hover:-translate-y-px hover:shadow-pixhover
+           active:bg-primary-700 active:translate-y-0 active:shadow-pix;
+  }
+  .btn-secondary {
+    @apply btn bg-white text-ink border border-border shadow-pix
+           hover:bg-bg hover:border-primary-300 hover:-translate-y-px hover:shadow-pixhover
+           active:translate-y-0 active:shadow-pix;
+  }
+  .btn-ghost {
+    @apply btn bg-transparent text-ink hover:bg-primary-50 hover:text-primary-700;
+  }
+  .btn-danger {
+    @apply btn bg-red-500 text-white border border-red-600 shadow-pix
+           hover:bg-red-600 hover:-translate-y-px hover:shadow-pixhover
+           active:translate-y-0 active:shadow-pix;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-ink mb-1.5;
+  }
+
+  .hint {
+    @apply text-xs text-ink2 mt-1;
+  }
+
+  .markdown-body {
+    @apply text-sm leading-relaxed text-ink;
+  }
+  .markdown-body h1 {
+    @apply text-xl font-semibold mt-4 mb-2;
+  }
+  .markdown-body h2 {
+    @apply text-lg font-semibold mt-4 mb-2;
+  }
+  .markdown-body h3 {
+    @apply text-base font-semibold mt-3 mb-1.5;
+  }
+  .markdown-body p {
+    @apply my-2;
+  }
+  .markdown-body ul {
+    @apply list-disc pl-6 my-2;
+  }
+  .markdown-body ol {
+    @apply list-decimal pl-6 my-2;
+  }
+  .markdown-body li {
+    @apply my-0.5;
+  }
+  .markdown-body code {
+    @apply bg-primary-50 text-primary-800 px-1.5 py-0.5 rounded text-[0.85em] font-mono;
+  }
+  .markdown-body pre {
+    @apply bg-ink text-white p-3 rounded-pix overflow-auto my-3;
+  }
+  .markdown-body pre code {
+    @apply bg-transparent p-0 text-inherit;
+  }
+  .markdown-body blockquote {
+    @apply border-l-4 border-primary pl-3 italic text-ink2 my-2;
+  }
+  .markdown-body table {
+    @apply border-collapse my-3 text-sm;
+  }
+  .markdown-body th,
+  .markdown-body td {
+    @apply border border-border px-2 py-1;
+  }
+  .markdown-body th {
+    @apply bg-bg font-medium;
+  }
+  .markdown-body a {
+    @apply text-primary-700 underline-offset-2 hover:underline;
+  }
+  .markdown-body hr {
+    @apply my-4 border-border;
+  }
+}
+
+@layer utilities {
+  /* 像素艺术：保持像素整数缩放、不抗锯齿 */
+  .pixelated {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+  }
+  /* 像素风文字（轻微仿像素感） */
+  .text-pix {
+    letter-spacing: 0.5px;
+    font-weight: 700;
+  }
+}
+
+/* 自定义动效 */
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.animate-pop {
+  animation: pop 0.14s ease-out;
+  transform-origin: top left;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-fadein {
+  animation: fadeIn 0.22s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-slidein {
+  animation: slideIn 0.24s ease-out;
+}
+
+/* 像素风加载点轮转 */
+@keyframes pixDot {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+
+/* Toast */
+.toast-stack {
+  position: fixed;
+  top: 40px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  min-width: 240px;
+  max-width: 360px;
+  background: #fff;
+  border: 1px solid #D7E5D8;
+  border-radius: 6px;
+  box-shadow: 2px 2px 0 0 rgb(47 62 47 / 0.08), 0 4px 12px rgb(47 62 47 / 0.08);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #2F3E2F;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  animation: toast-in 0.18s ease-out;
+}
+.toast-info {
+  border-left: 3px solid #7BC47F;
+}
+.toast-success {
+  border-left: 3px solid #5DAE63;
+}
+.toast-error {
+  border-left: 3px solid #ef4444;
+}
+@keyframes toast-in {
+  from {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

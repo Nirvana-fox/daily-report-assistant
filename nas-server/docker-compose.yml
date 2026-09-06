@@ -1,0 +1,14 @@
+services:
+  report-assistant-nas:
+    build: .
+    container_name: report-assistant-nas
+    restart: unless-stopped
+    ports:
+      - "8088:8088"
+    environment:
+      # 访问令牌：为空则不鉴权；建议设置，客户端「设置 → NAS 同步 → 访问令牌」填同一值
+      - TOKEN=
+      - DATA_DIR=/data
+    volumes:
+      # ★ 按需修改左侧路径为你的 NAS 共享目录（DSM: /volume1/... ）
+      - /volume1/docker/report-assistant:/data

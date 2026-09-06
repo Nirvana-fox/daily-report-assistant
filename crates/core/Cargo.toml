@@ -1,0 +1,49 @@
+[package]
+name = "report-assistant-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tokio.workspace = true
+futures.workspace = true
+async-trait.workspace = true
+parking_lot.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+chrono.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-appender.workspace = true
+reqwest.workspace = true
+rusqlite.workspace = true
+r2d2.workspace = true
+r2d2_sqlite.workspace = true
+image.workspace = true
+base64.workspace = true
+dirs.workspace = true
+uuid.workspace = true
+regex = "1"
+git2.workspace = true
+
+# 截图（跨平台）
+xcap = "0.9"
+
+# Markdown 渲染（用于报告导出 HTML）
+pulldown-cmark = "0.12"
+
+# Word 文档生成（用于报告导出 .docx）
+docx-rs = "0.4"
+
+# Windows 空闲检测 + 前台应用采集
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Foundation",
+] }

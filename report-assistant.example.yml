@@ -1,0 +1,73 @@
+# 日报助手 配置示例
+# 复制为 ~/.report-assistant/config.yml（推荐直接在应用「设置」里图形化配置后自动生成）
+
+llm:
+  # 多 provider 写法（推荐）：每条是一个 OpenAI 兼容端点
+  providers:
+    - id: p-cloud
+      name: 云端视觉
+      provider: openai
+      base_url: https://api.openai.com/v1
+      api_key: "sk-..."            # 也可用环境变量 REPORT_ASSISTANT_API_KEY
+      model: gpt-4o                # 截图分析需要视觉（多模态）模型
+      temperature: 0.4
+      timeout: 60
+    - id: p-local                  # 本地大模型（Ctrl+Alt+L 一键切换到这里）
+      name: 本地模型 (Ollama)
+      provider: ollama
+      base_url: http://127.0.0.1:11434/v1
+      api_key: "ollama"            # Ollama 不校验 key，填任意非空值
+      model: qwen2.5-vl:7b
+      temperature: 0.4
+      timeout: 120
+  default_text_id: p-cloud         # 生成报告用的文本模型
+  default_vision_id: p-cloud       # 截图分析用的视觉模型
+  default_local_vision_id: p-local # 「本地模式」使用的视觉模型
+  use_local_vision: false          # true = 当前走本地模型分析
+
+screenshot:
+  enabled: true
+  interval_seconds: 600        # 截图间隔
+  keep_after_analysis: false   # 隐私优先：分析完即删（启用 NAS 时先推送再删）
+  output_dir: ~/.report-assistant/screenshots
+  auto_start: false            # 启动后自动开始监听
+  monitor_index: 1             # 0=主屏；1+=具体屏幕
+  idle_skip_seconds: 300       # 连续无操作 N 秒后跳过截图；0=不检测
+  dedup_screenshots: true      # 画面未变化时跳过分析（dHash 去重，省 token）
+
+git:
+  enabled: false
+  repos:                       # 仓库目录（绝对路径，每行一个）
+    - C:/workspace/my-project
+    - C:/workspace/another-project
+  author_emails:               # 「我的」提交邮箱（任一匹配；都留空 = 不过滤）
+    - me@example.com
+  author_names:
+    - Ethan
+  poll_interval_seconds: 600   # 扫描间隔；按 commit id 幂等去重
+
+report:
+  default_template: standard   # standard / concise / technical / okr
+  language: zh-CN
+  user_name: 张三
+  team: 平台研发组
+
+todo:
+  # 全局快捷键：弹出「输入 + 列表」一体窗口；留空禁用
+  hotkey: Alt+Space
+
+# NAS 数据同步（服务端部署见 nas-server/）
+nas:
+  enabled: false
+  base_url: http://192.168.1.100:8088
+  token: ""                    # 与服务端 TOKEN 环境变量一致；留空 = 不鉴权
+  device_id: ""                # 留空自动取主机名
+  device_name: 我的电脑
+  sync_images: true            # 同步截图原图（NAS 上按日期/设备单独存放）
+  sync_interval_seconds: 30
+
+# 全局功能热键
+shortcuts:
+  local_llm_toggle: Ctrl+Alt+L # 云端/本地大模型切换
+
+db_path: ~/.report-assistant/data.sqlite

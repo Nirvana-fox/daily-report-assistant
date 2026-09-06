@@ -1,0 +1,224 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.platform.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os: windows-latest
+            asset_name: report-assistant-${{ github.run_number }}-windows-x64
+            tauri_target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            asset_name: report-assistant-${{ github.run_number }}-macos-aarch64
+            tauri_target: aarch64-apple-darwin
+          - os: ubuntu-24.04
+            asset_name: report-assistant-${{ github.run_number }}-linux-x64
+            tauri_target: x86_64-unknown-linux-gnu
+
+    runs-on: ${{ matrix.platform.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # Linux 平台需要 webkit / appindicator / patchelf 才能打包 .deb 和 AppImage
+      - name: Install Linux deps
+        if: matrix.platform.os == 'ubuntu-24.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            file \
+            fuse \
+            libfuse2 \
+            libpipewire-0.3-dev \
+            libclang-dev \
+            libgbm-dev \
+            libegl-dev \
+            libwayland-dev \
+            libxcb1-dev \
+            libxkbcommon-dev
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: false
+
+      - name: Install frontend deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target/
+            src-tauri/target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      # 先编 CLI，独立的 workspace 包，产物在 target/release/
+      - name: Build CLI
+        shell: bash
+        run: cargo build --release -p report-assistant-cli
+
+      # pnpm tauri build 会自动跑 pnpm build（前端）+ cargo build --release（src-tauri）
+      # 然后调 bundler 产出对应平台的安装包到 src-tauri/target/release/bundle/
+      - name: Build Tauri (frontend + bundle)
+        shell: bash
+        run: pnpm tauri build
+
+      # Windows: 收集 NSIS 安装器 + CLI 二进制
+      - name: Collect (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path "artifacts" -Force | Out-Null
+          # NSIS 安装器（*-setup.exe）
+          $nsis = Get-ChildItem "src-tauri/target/release/bundle/nsis" -Filter "*-setup.exe" -ErrorAction SilentlyContinue
+          if ($nsis) {
+            Copy-Item $nsis[0].FullName "artifacts/${{ matrix.platform.asset_name }}-installer.exe"
+          } else {
+            Write-Warning "未找到 NSIS 安装器"
+          }
+          # CLI 二进制
+          if (Test-Path "target/release/report-assistant.exe") {
+            Copy-Item "target/release/report-assistant.exe" "artifacts/${{ matrix.platform.asset_name }}-cli.exe"
+          } else {
+            Write-Warning "未找到 CLI 二进制"
+          }
+          Get-ChildItem artifacts
+
+      # macOS: 收集 DMG + CLI 二进制（GitHub-hosted runner 现在是 arm64）
+      - name: Collect (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cp src-tauri/target/release/bundle/dmg/*.dmg "artifacts/${{ matrix.platform.asset_name }}-installer.dmg" 2>/dev/null || echo "未找到 DMG"
+          cp target/release/report-assistant "artifacts/${{ matrix.platform.asset_name }}-cli" 2>/dev/null || echo "未找到 CLI 二进制"
+          chmod +x artifacts/* 2>/dev/null || true
+          ls -lh artifacts
+
+      # Linux: 收集 AppImage + .deb + CLI 二进制
+      - name: Collect (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          cp src-tauri/target/release/bundle/appimage/*.AppImage "artifacts/${{ matrix.platform.asset_name }}.AppImage" 2>/dev/null || echo "未找到 AppImage"
+          cp src-tauri/target/release/bundle/deb/*.deb "artifacts/${{ matrix.platform.asset_name }}.deb" 2>/dev/null || echo "未找到 deb 包"
+          cp target/release/report-assistant "artifacts/${{ matrix.platform.asset_name }}-cli" 2>/dev/null || echo "未找到 CLI 二进制"
+          chmod +x artifacts/* 2>/dev/null || true
+          ls -lh artifacts
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform.asset_name }}
+          path: artifacts/*
+          if-no-files-found: warn
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute version
+        id: ver
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          VERSION="v$(node -p "require('./package.json').version")"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            LOG=$(git log --pretty=format:"- %s (%h)" "${LAST_TAG}..HEAD")
+          else
+            LOG=$(git log --pretty=format:"- %s (%h)" -30)
+          fi
+          {
+            echo "changelog<<EOF"
+            echo "$LOG"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # 把三个平台的 artifact 全部下载并平铺到 artifacts/
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List artifacts
+        run: ls -lh artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.version }}
+          name: ${{ steps.ver.outputs.version }}
+          body: |
+            构建编号：${{ github.run_number }}
+            提交：${{ steps.ver.outputs.short_sha }}
+
+            ## 变更
+            ${{ steps.changelog.outputs.changelog }}
+
+            ## 下载方式
+            - **Windows 用户**：下载 `*-installer.exe` 双击安装（NSIS 安装器）
+            - **macOS 用户**：下载 `*-installer.dmg` 拖到 Applications
+            - **Linux 用户**：下载 `*.AppImage`（赋执行权后双击）或 `*.deb` 包
+            - **命令行用户**：下载 `*-cli` / `*-cli.exe`
+
+            ## 文件命名
+            - Windows：`*-windows-x64-installer.exe` / `*-windows-x64-cli.exe`
+            - macOS（Apple Silicon）：`*-macos-aarch64-installer.dmg` / `*-macos-aarch64-cli`
+            - Linux：`*-linux-x64.AppImage` / `*-linux-x64.deb` / `*-linux-x64-cli`
+          # 把所有平台所有产物都挂到 Release 上
+          files: |
+            artifacts/**/*.exe
+            artifacts/**/*.dmg
+            artifacts/**/*.AppImage
+            artifacts/**/*.deb
+            artifacts/**/*-cli
+          draft: false
+          prerelease: false
+          generate_release_notes: false

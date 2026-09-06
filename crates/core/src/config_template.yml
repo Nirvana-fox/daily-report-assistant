@@ -1,0 +1,90 @@
+# 小T日报助手 配置文件
+llm:
+  # 多 provider 写法（推荐，在「设置 → LLM」里图形化管理后自动生成）：
+  # providers:
+  #   - id: p-cloud
+  #     name: 云端视觉
+  #     provider: openai
+  #     base_url: https://api.openai.com/v1
+  #     api_key: sk-xxx
+  #     model: gpt-4o
+  #     temperature: 0.4
+  #     timeout: 60
+  #   - id: p-local
+  #     name: 本地模型 (Ollama)
+  #     provider: ollama
+  #     base_url: http://127.0.0.1:11434/v1
+  #     api_key: ollama
+  #     model: qwen2.5-vl:7b
+  #     temperature: 0.4
+  #     timeout: 120
+  # default_text_id: p-cloud
+  # default_vision_id: p-cloud
+  # default_local_vision_id: p-local
+
+  # 兼容旧扁平写法：
+  provider: openai
+  base_url: https://api.openai.com/v1
+  api_key: ""
+  model: gpt-4o-mini
+  vision_model: gpt-4o-mini
+  temperature: 0.4
+  timeout: 60
+
+screenshot:
+  enabled: true
+  interval_seconds: 600
+  keep_after_analysis: false
+  output_dir: ""
+  auto_start: false
+  monitor_index: 1
+  idle_skip_seconds: 300
+  # 画面与上一张几乎一致时跳过视觉分析（省 token）
+  dedup_screenshots: true
+
+report:
+  default_template: standard
+  language: zh-CN
+  user_name: ""
+  team: ""
+
+app:
+  auto_launch_on_boot: false
+  silent_launch: false
+  cleanup_keep_days: 60
+
+todo:
+  # 全局快捷键：弹出「输入 + 列表」一体窗口（最小化/托盘时同样生效）
+  # 默认 Alt+Space；留空禁用
+  hotkey: Alt+Space
+
+# NAS 数据同步：把工作记录与截图原图增量推送到 NAS 服务端（nas-server/ 目录）
+nas:
+  enabled: false
+  # 服务端地址，例如 http://192.168.1.100:8088
+  base_url: ""
+  # 访问令牌：服务端设置 TOKEN 环境变量后必须一致
+  token: ""
+  # 设备标识：留空自动取主机名；多台电脑同步时手动命名
+  device_id: ""
+  device_name: ""
+  # 同步截图原图（图片在 NAS 上按 日期/设备 单独存放）
+  sync_images: true
+  # 同步周期（秒）
+  sync_interval_seconds: 30
+
+# Git 提交收集：定期扫描本地仓库，把「我的」提交写入时间线（source=git）
+git:
+  enabled: false
+  repos: []
+  # 我的提交邮箱/姓名（与姓名任一匹配即可；都留空 = 收集所有作者）
+  author_emails: []
+  author_names: []
+  poll_interval_seconds: 600
+
+# 全局功能热键
+shortcuts:
+  # 一键切换 截图分析用 云端/本地 大模型；留空禁用
+  local_llm_toggle: Ctrl+Alt+L
+
+db_path: ""
