@@ -219,8 +219,24 @@ pub fn start_sync_worker(config: Arc<Mutex<Config>>, storage: Storage) -> SyncHa
         notify: Arc::new(tokio::sync::Notify::new()),
     };
     let notify = handle.notify.clone();
-    tokio::spawn(async move {
-        loop {
+    // 独立 OS 线程 + 专用 current_thread runtime：
+    // 本函数在 tauri builder 之前调用，那时全局 tokio runtime 还不存在，
+    // 直接 tokio::spawn 会 panic（退出码 101）。自带 runtime 则在任何上下文都安全。
+    let spawned = std::thread::Builder::new()
+        .name("nas-sync".into())
+        .spawn(move || {
+            let rt = match tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+            {
+                Ok(rt) => rt,
+                Err(e) => {
+                    tracing::warn!("NAS 同步线程 runtime 创建失败: {e}");
+                    return;
+                }
+            };
+            rt.block_on(async move {
+                loop {
             // 读取本轮参数
             let (configured, base, token, device_id, device_name, sync_images, interval) = {
                 let cfg = config.lock();
@@ -273,13 +289,17 @@ pub fn start_sync_worker(config: Arc<Mutex<Config>>, storage: Storage) -> SyncHa
                 }
             }
 
-            // 等待周期或手动触发
-            tokio::select! {
-                _ = tokio::time::sleep(Duration::from_secs(interval)) => {}
-                _ = notify.notified() => {}
-            }
-        }
-    });
+                    // 等待周期或手动触发
+                    tokio::select! {
+                        _ = tokio::time::sleep(Duration::from_secs(interval)) => {}
+                        _ = notify.notified() => {}
+                    }
+                }
+            });
+        });
+    if let Err(e) = spawned {
+        tracing::warn!("NAS 同步线程启动失败: {e}");
+    }
     handle
 }
 
