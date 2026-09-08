@@ -251,6 +251,17 @@ fn build_user_prompt(
         prepared.period_start.format("%Y-%m-%d %H:%M"),
         prepared.period_end.format("%Y-%m-%d %H:%M"),
     );
+
+    // —— 用户背景资料（帮助理解人名/组织/项目；仅作上下文，不要直接罗列） ——
+    let profile_block = cfg.profile.to_prompt_block();
+    if !profile_block.is_empty() {
+        out.push_str(
+            "\n【用户背景资料】（帮助理解工作记录中出现的人名、组织、项目与职责，\
+             仅作上下文使用，不要在报告中直接罗列这些内容）\n",
+        );
+        out.push_str(&profile_block);
+        out.push('\n');
+    }
     out.push_str(
         "\n【重要】本报告请以「已完成待办」为主要事实来源撰写「完成事项」；\
          截图仅作补充佐证，不要用截图臆造完成项。\n\n",
@@ -351,6 +362,14 @@ fn build_user_prompt(
     // —— 模板提示 ——
     out.push_str("## 输出要求\n");
     out.push_str(&tpl.user_prompt_hint);
+
+    // —— 用户自定义指令（最高优先级，必须遵守） ——
+    let custom = cfg.report.custom_instructions.trim();
+    if !custom.is_empty() {
+        out.push_str("\n## 用户自定义指令（必须遵守，优先级最高）\n");
+        out.push_str(custom);
+        out.push('\n');
+    }
 
     out
 }

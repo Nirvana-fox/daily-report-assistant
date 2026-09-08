@@ -41,6 +41,27 @@ export interface ReportConfig {
   language: string;
   user_name: string;
   team: string;
+  /** 用户自定义指令：生成日报/报告时交给模型遵守 */
+  custom_instructions: string;
+}
+
+export interface ProfileConfig {
+  /** 希望如何称呼你（必填） */
+  display_name: string;
+  /** 其他称呼 */
+  aliases: string;
+  /** 角色与自我定位 */
+  role: string;
+  /** 公司、组织与岗位 */
+  org: string;
+  /** 当前项目、产品与业务背景 */
+  projects: string;
+  /** 核心职责与常见工作 */
+  responsibilities: string;
+  /** 团队成员与常见协作者 */
+  collaborators: string;
+  /** 其他长期信息 */
+  extra: string;
 }
 
 export interface AppConfig {
@@ -93,6 +114,7 @@ export interface Config {
   nas: NasConfig;
   git: GitConfig;
   shortcuts: ShortcutConfig;
+  profile: ProfileConfig;
   db_path: string;
 }
 

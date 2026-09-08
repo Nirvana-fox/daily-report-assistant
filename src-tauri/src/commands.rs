@@ -984,11 +984,18 @@ pub async fn chat_llm(
     };
     let llm = LlmClient::new(text_provider).map_err(|e| e.to_string())?;
 
+    // 注入用户背景资料：帮助 AI 理解人名、组织、项目与职责
+    let profile_block = cfg.profile.to_prompt_block();
+    let system_prompt = if profile_block.is_empty() {
+        "你是一个专业的智能规划助手，擅长任务拆解、时间管理和计划制定。请根据用户需求提供详细的分析和建议。".to_string()
+    } else {
+        format!(
+            "你是一个专业的智能规划助手，擅长任务拆解、时间管理和计划制定。\n\n\
+             【用户背景资料】（帮助理解人名、组织、项目与职责）\n{profile_block}"
+        )
+    };
     let messages = vec![
-        llm::ChatMessage::text(
-            "system",
-            "你是一个专业的智能规划助手，擅长任务拆解、时间管理和计划制定。请根据用户需求提供详细的分析和建议。",
-        ),
+        llm::ChatMessage::text("system", system_prompt),
         llm::ChatMessage::text("user", prompt),
     ];
 

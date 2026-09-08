@@ -25,6 +25,17 @@ const DEFAULT_CONFIG: Config = {
     language: 'zh-CN',
     user_name: '',
     team: '',
+    custom_instructions: '',
+  },
+  profile: {
+    display_name: '',
+    aliases: '',
+    role: '',
+    org: '',
+    projects: '',
+    responsibilities: '',
+    collaborators: '',
+    extra: '',
   },
   app: {
     auto_launch_on_boot: false,

@@ -312,6 +312,9 @@ pub struct ReportConfig {
     pub user_name: String,
     #[serde(default)]
     pub team: String,
+    /// 用户自定义指令：生成日报/报告时交给模型遵守（输出格式、内容取舍、风格等）
+    #[serde(default)]
+    pub custom_instructions: String,
 }
 
 impl Default for ReportConfig {
@@ -321,7 +324,77 @@ impl Default for ReportConfig {
             language: default_lang(),
             user_name: String::new(),
             team: String::new(),
+            custom_instructions: String::new(),
         }
+    }
+}
+
+/// 「我的资料」：用户主动维护的长期背景，帮助 AI 理解人名、组织、项目与职责。
+/// 只存本地，仅在相关 AI 功能中按需注入（报告生成 / 规划对话）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ProfileConfig {
+    /// 希望如何称呼你（必填）
+    #[serde(default)]
+    pub display_name: String,
+    /// 其他称呼
+    #[serde(default)]
+    pub aliases: String,
+    /// 角色与自我定位
+    #[serde(default)]
+    pub role: String,
+    /// 公司、组织与岗位
+    #[serde(default)]
+    pub org: String,
+    /// 当前项目、产品与业务背景
+    #[serde(default)]
+    pub projects: String,
+    /// 核心职责与常见工作
+    #[serde(default)]
+    pub responsibilities: String,
+    /// 团队成员与常见协作者
+    #[serde(default)]
+    pub collaborators: String,
+    /// 其他长期信息
+    #[serde(default)]
+    pub extra: String,
+}
+
+impl ProfileConfig {
+    /// 是否填了任何内容。
+    pub fn is_empty(&self) -> bool {
+        self.display_name.trim().is_empty()
+            && self.aliases.trim().is_empty()
+            && self.role.trim().is_empty()
+            && self.org.trim().is_empty()
+            && self.projects.trim().is_empty()
+            && self.responsibilities.trim().is_empty()
+            && self.collaborators.trim().is_empty()
+            && self.extra.trim().is_empty()
+    }
+
+    /// 拼装成给 LLM 的背景资料块（每行一条；空字段跳过）。
+    pub fn to_prompt_block(&self) -> String {
+        if self.is_empty() {
+            return String::new();
+        }
+        let mut lines: Vec<String> = Vec::new();
+        let fields: [(&str, &str); 8] = [
+            ("称呼", self.display_name.trim()),
+            ("其他称呼", self.aliases.trim()),
+            ("角色定位", self.role.trim()),
+            ("公司/组织/岗位", self.org.trim()),
+            ("当前项目/业务", self.projects.trim()),
+            ("核心职责", self.responsibilities.trim()),
+            ("团队与常见协作者", self.collaborators.trim()),
+            ("其他长期信息", self.extra.trim()),
+        ];
+        for (label, v) in fields {
+            if !v.is_empty() {
+                lines.push(format!("- {label}：{v}"));
+            }
+        }
+        lines.join("
+")
     }
 }
 
@@ -524,6 +597,9 @@ pub struct Config {
     pub app: AppConfig,
     #[serde(default)]
     pub todo: TodoConfig,
+    /// 我的资料（AI 长期背景）。
+    #[serde(default)]
+    pub profile: ProfileConfig,
     /// NAS 数据同步。
     #[serde(default)]
     pub nas: NasConfig,

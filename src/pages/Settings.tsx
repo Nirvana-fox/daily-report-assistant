@@ -16,6 +16,9 @@ import {
   Info,
   HardDrive,
   RefreshCw,
+  UserCog,
+  ClipboardList,
+  X,
 } from 'lucide-react';
 
 import Card from '../components/Card';
@@ -43,10 +46,11 @@ import type {
 import { useToast } from '../hooks/useToast';
 import dayjs from 'dayjs';
 
-type TabKey = 'llm' | 'screenshot' | 'nas' | 'report' | 'app' | 'data' | 'about';
+type TabKey = 'llm' | 'ai' | 'screenshot' | 'nas' | 'report' | 'app' | 'data' | 'about';
 
 const SETTING_TABS = [
   { key: 'llm' as const, label: 'LLM', icon: <Cpu size={14} /> },
+  { key: 'ai' as const, label: 'AI 资料', icon: <UserCog size={14} /> },
   { key: 'screenshot' as const, label: '截图', icon: <Camera size={14} /> },
   { key: 'nas' as const, label: 'NAS 同步', icon: <HardDrive size={14} /> },
   { key: 'report' as const, label: '报告', icon: <FileText size={14} /> },
@@ -78,6 +82,11 @@ export default function Settings() {
   // NAS 操作状态
   const [nasTesting, setNasTesting] = useState(false);
   const [nasSyncing, setNasSyncing] = useState(false);
+  // AI 资料弹窗
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showCustomModal, setShowCustomModal] = useState(false);
+  const [profileDraft, setProfileDraft] = useState<Config['profile'] | null>(null);
+  const [customDraft, setCustomDraft] = useState('');
 
   // draft 加载后，若已有 providers 而未选中任何项，自动选第一个
   useEffect(() => {
@@ -691,6 +700,93 @@ export default function Settings() {
               </Button>
             </div>
           </Card>
+        )}
+
+        {/* AI 资料 */}
+        {tab === 'ai' && (
+          <>
+            <Card
+              title="我的资料"
+              description="只由你主动维护，用于帮助 AI 理解你的人名、组织、项目和长期工作背景；保存在本地，只会在相关 AI 功能中按需使用"
+              hoverable={false}
+            >
+              {(() => {
+                const pf = draft.profile;
+                const items: [string, string][] = [
+                  ['希望如何称呼你', pf?.display_name ?? ''],
+                  ['其他称呼', pf?.aliases ?? ''],
+                  ['角色与自我定位', pf?.role ?? ''],
+                  ['公司、组织与岗位', pf?.org ?? ''],
+                  ['当前项目、产品与业务背景', pf?.projects ?? ''],
+                  ['核心职责与常见工作', pf?.responsibilities ?? ''],
+                  ['团队成员与常见协作者', pf?.collaborators ?? ''],
+                  ['其他长期信息', pf?.extra ?? ''],
+                ];
+                const filled = items.filter(([, v]) => v.trim());
+                return (
+                  <>
+                    {filled.length === 0 ? (
+                      <div className="text-sm text-ink2 py-2">
+                        还没有填写资料。填写后 AI 生成报告和规划对话会更懂你。
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 mb-3">
+                        {filled.map(([k, v]) => (
+                          <div key={k} className="text-sm flex gap-2">
+                            <span className="text-ink2 w-44 shrink-0">{k}</span>
+                            <span className="text-ink break-all">{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={<UserCog size={14} />}
+                      onClick={() => {
+                        setProfileDraft(
+                          structuredClone(draft.profile ?? {
+                            display_name: '', aliases: '', role: '', org: '',
+                            projects: '', responsibilities: '', collaborators: '', extra: '',
+                          })
+                        );
+                        setShowProfileModal(true);
+                      }}
+                    >
+                      {filled.length === 0 ? '填写我的资料' : '编辑我的资料'}
+                    </Button>
+                  </>
+                );
+              })()}
+            </Card>
+
+            <Card
+              title="自定义指令"
+              description="生成日报或报告时交给模型遵循：输出格式、内容取舍、表达风格、需要排除的记录或其他特殊要求；不填则由 AI 根据模板和工作记录自动组织内容"
+              hoverable={false}
+            >
+              {draft.report.custom_instructions?.trim() ? (
+                <div className="bg-bg/50 border border-border rounded-pix p-3 text-sm text-ink whitespace-pre-wrap mb-3 line-clamp-6">
+                  {draft.report.custom_instructions}
+                </div>
+              ) : (
+                <div className="text-sm text-ink2 py-2 mb-3">
+                  未设置。例如：按 Markdown 输出；重点突出项目成果和风险；弱化闲聊等无关记录；语气简洁、适合发给领导。
+                </div>
+              )}
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<ClipboardList size={14} />}
+                onClick={() => {
+                  setCustomDraft(draft.report.custom_instructions ?? '');
+                  setShowCustomModal(true);
+                }}
+              >
+                {draft.report.custom_instructions?.trim() ? '编辑指令' : '设置指令'}
+              </Button>
+            </Card>
+          </>
         )}
 
         {/* Screenshot */}
@@ -1371,6 +1467,171 @@ export default function Settings() {
               </div>
             </Card>
           </>
+        )}
+
+        {/* 我的资料弹窗 */}
+        {showProfileModal && profileDraft && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setShowProfileModal(false)} />
+            <div className="relative bg-card rounded-lg shadow-xl w-full max-w-2xl max-h-[88vh] overflow-auto">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+                <div>
+                  <h2 className="text-base font-semibold text-ink">我的资料</h2>
+                  <p className="text-xs text-ink2 mt-0.5">
+                    这些资料只由你主动维护，用于帮助 AI 理解你的人名、组织、项目和长期工作背景。
+                  </p>
+                </div>
+                <button onClick={() => setShowProfileModal(false)} className="p-1 rounded-pix text-ink2 hover:text-ink hover:bg-bg">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-5 space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <Input
+                    label="希望如何称呼你 *"
+                    value={profileDraft.display_name}
+                    onChange={(e) => setProfileDraft({ ...profileDraft, display_name: e.target.value })}
+                    placeholder="怎么称呼你"
+                  />
+                  <Input
+                    label="其他称呼"
+                    value={profileDraft.aliases}
+                    onChange={(e) => setProfileDraft({ ...profileDraft, aliases: e.target.value })}
+                    placeholder="例如：小黑、Leo 哥"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="label">角色与自我定位</label>
+                  <textarea
+                    className="input min-h-[56px] resize-none"
+                    placeholder="例如：AI 应用层创业者、产品负责人"
+                    value={profileDraft.role}
+                    onChange={(e) => setProfileDraft({ ...profileDraft, role: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="label">公司、组织与岗位</label>
+                  <textarea
+                    className="input min-h-[56px] resize-none"
+                    placeholder="填写你所在或经营的公司、组织，以及对应岗位"
+                    value={profileDraft.org}
+                    onChange={(e) => setProfileDraft({ ...profileDraft, org: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="label">当前项目、产品与业务背景</label>
+                  <textarea
+                    className="input min-h-[56px] resize-none"
+                    placeholder="填写当前长期推进的项目、产品、客户或业务方向"
+                    value={profileDraft.projects}
+                    onChange={(e) => setProfileDraft({ ...profileDraft, projects: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="label">核心职责与常见工作</label>
+                  <textarea
+                    className="input min-h-[56px] resize-none"
+                    placeholder="填写你通常负责的事项和日常工作范围"
+                    value={profileDraft.responsibilities}
+                    onChange={(e) => setProfileDraft({ ...profileDraft, responsibilities: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="label">团队成员与常见协作者</label>
+                  <textarea
+                    className="input min-h-[56px] resize-none"
+                    placeholder="填写常见协作者及其角色，避免 AI 混淆人物关系"
+                    value={profileDraft.collaborators}
+                    onChange={(e) => setProfileDraft({ ...profileDraft, collaborators: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="label">其他长期信息</label>
+                  <textarea
+                    className="input min-h-[56px] resize-none"
+                    placeholder="补充其他希望 AI 长期了解、且相对稳定的信息"
+                    value={profileDraft.extra}
+                    onChange={(e) => setProfileDraft({ ...profileDraft, extra: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between px-5 py-3 border-t border-border">
+                <span className="text-xs text-ink2">
+                  资料保存在本地，只会在相关 AI 功能中按需使用 ·{' '}
+                  {Object.values(profileDraft).join('').length}/12000
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => setShowProfileModal(false)}>
+                    取消
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={!profileDraft.display_name.trim()}
+                    onClick={() => {
+                      const next = { ...draft, profile: profileDraft };
+                      void save(next).then(() => {
+                        setDraft(next);
+                        setShowProfileModal(false);
+                        toast.success('我的资料已保存');
+                      });
+                    }}
+                  >
+                    保存修改
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 自定义指令弹窗 */}
+        {showCustomModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setShowCustomModal(false)} />
+            <div className="relative bg-card rounded-lg shadow-xl w-full max-w-xl">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+                <div>
+                  <h2 className="text-base font-semibold text-ink">自定义指令</h2>
+                  <p className="text-xs text-ink2 mt-0.5">
+                    会在生成日报或报告时交给模型遵循；不填则由 AI 根据模板和工作记录自动组织内容。
+                  </p>
+                </div>
+                <button onClick={() => setShowCustomModal(false)} className="p-1 rounded-pix text-ink2 hover:text-ink hover:bg-bg">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="p-5">
+                <textarea
+                  className="input min-h-[180px] resize-y"
+                  placeholder="这里可以写任何希望 AI 在生成日报/报告时遵循的要求，例如：按 Markdown 输出；重点突出项目成果和风险；弱化或删除游戏、微信闲聊等无关记录；不要编造未出现的事项；语气简洁、适合发给领导。"
+                  value={customDraft}
+                  onChange={(e) => setCustomDraft(e.target.value)}
+                />
+                <p className="text-xs text-ink2 mt-2">{customDraft.length} 字 · 保存后立即对日报/周报/月报生效</p>
+              </div>
+              <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-border">
+                <Button variant="secondary" size="sm" onClick={() => setShowCustomModal(false)}>
+                  取消
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    const next = {
+                      ...draft,
+                      report: { ...draft.report, custom_instructions: customDraft },
+                    };
+                    void save(next).then(() => {
+                      setDraft(next);
+                      setShowCustomModal(false);
+                      toast.success('自定义指令已保存');
+                    });
+                  }}
+                >
+                  保存
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
