@@ -148,13 +148,14 @@ ${input}
     "tags": ["标签1", "标签2"],
     "progress": 0,
     "status": "pending",
-    "period": "day|week|month|year"
+    "period": "week|month|year"
   }
 ]
 
 注意：
 - 日期格式必须是 YYYY-MM-DD
 - 时间格式必须是 HH:MM
+- period 只能取 week/month/year：本工具只做年/月/周规划；具体到某一天执行的安排不要生成，由用户在今日工作中自行添加
 - 如果是循环任务，请设置对应的 cycle_type
 - 根据任务重要性设置优先级
 - 如果用户要求调整现有计划，请分析影响并给出调整方案
@@ -181,7 +182,7 @@ ${input}
             progress: t.progress || 0,
             status: t.status || 'pending',
             parent_id: null,
-            period: t.period || 'day',
+            period: (t.period === 'day' ? 'week' : t.period) || 'week',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }));
@@ -325,13 +326,14 @@ ${tableContent}
     "tags": ["标签1", "标签2"],
     "progress": 0,
     "status": "pending",
-    "period": "day|week|month|year"
+    "period": "week|month|year"
   }
 ]
 
 注意：
 - 日期格式必须是 YYYY-MM-DD
 - 时间格式必须是 HH:MM
+- period 只能取 week/month/year：本工具只做年/月/周规划；具体到某一天执行的安排不要生成，由用户在今日工作中自行添加
 - 如果是循环任务，请设置对应的 cycle_type
 - 根据任务重要性设置优先级
 - 如果表格中有冲突或需要调整的地方，请在分析说明中指出
@@ -358,7 +360,7 @@ ${tableContent}
             progress: t.progress || 0,
             status: t.status || 'pending',
             parent_id: null,
-            period: t.period || 'day',
+            period: (t.period === 'day' ? 'week' : t.period) || 'week',
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }));

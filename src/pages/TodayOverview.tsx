@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react';
-import { ListChecks, Clock, Tag, TrendingUp, FileText } from 'lucide-react';
+import { ListChecks, Clock, Tag, TrendingUp, FileText, Plus, Trash2, CalendarCheck } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
 import { useToast } from '../hooks/useToast';
 import {
+  addPlanTask,
+  deletePlanTask,
   getAppUsage,
   getHeatMap,
+  listPlanTasks,
   listWorkLogs,
   generateReport,
+  updatePlanTask,
 } from '../api/ipc';
-import type { AppUsageRecord, HeatMapRecord, WorkLog } from '../api/types';
+import type { AppUsageRecord, HeatMapRecord, PlanTask, WorkLog } from '../api/types';
 import dayjs from 'dayjs';
 
 export default function TodayOverview() {
@@ -19,8 +23,78 @@ export default function TodayOverview() {
   const [heatMap, setHeatMap] = useState<HeatMapRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  // 今日计划（period=day 的规划任务）
+  const [dayPlans, setDayPlans] = useState<PlanTask[]>([]);
+  const [newPlanTitle, setNewPlanTitle] = useState('');
+  const [addingPlan, setAddingPlan] = useState(false);
 
   const today = dayjs().format('YYYY-MM-DD');
+
+  const fetchDayPlans = async () => {
+    try {
+      const all = await listPlanTasks(today, today);
+      setDayPlans(
+        all.filter(
+          (t) => t.period === 'day' && t.start_date <= today && t.end_date >= today
+        )
+      );
+    } catch {
+      setDayPlans([]);
+    }
+  };
+
+  const addDayPlan = async () => {
+    const title = newPlanTitle.trim();
+    if (!title) return;
+    setAddingPlan(true);
+    try {
+      await addPlanTask({
+        title,
+        description: '',
+        start_date: today,
+        end_date: today,
+        start_time: '09:00',
+        end_time: '18:00',
+        cycle_type: 'single',
+        priority: 'medium',
+        tags: '[]',
+        progress: 0,
+        status: 'pending',
+        parent_id: null,
+        period: 'day',
+      });
+      setNewPlanTitle('');
+      await fetchDayPlans();
+      toast.success('已加入今日计划');
+    } catch (e: any) {
+      toast.error(`添加失败: ${e}`);
+    } finally {
+      setAddingPlan(false);
+    }
+  };
+
+  const toggleDayPlan = async (t: PlanTask) => {
+    const done = t.status === 'completed';
+    try {
+      await updatePlanTask({
+        ...t,
+        status: done ? 'in_progress' : 'completed',
+        progress: done ? Math.min(t.progress, 99) : 100,
+      });
+      await fetchDayPlans();
+    } catch (e: any) {
+      toast.error(`更新失败: ${e}`);
+    }
+  };
+
+  const removeDayPlan = async (id: number) => {
+    try {
+      await deletePlanTask(id);
+      await fetchDayPlans();
+    } catch (e: any) {
+      toast.error(`删除失败: ${e}`);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -45,6 +119,7 @@ export default function TodayOverview() {
 
   useEffect(() => {
     fetchData();
+    fetchDayPlans();
   }, []);
 
   const handleGenerate = async () => {
@@ -157,6 +232,75 @@ export default function TodayOverview() {
           </div>
         </Card>
       </div>
+
+      <Card
+        title="今日计划"
+        description="当天要做的安排（年/月/周规划请到「规划」页）"
+        hoverable={false}
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <input
+            className="input flex-1"
+            placeholder="添加今日计划，如：下午 3 点对齐需求评审"
+            value={newPlanTitle}
+            onChange={(e) => setNewPlanTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void addDayPlan();
+            }}
+            disabled={addingPlan}
+          />
+          <Button
+            size="sm"
+            icon={<Plus size={14} />}
+            onClick={() => void addDayPlan()}
+            loading={addingPlan}
+            disabled={!newPlanTitle.trim()}
+          >
+            添加
+          </Button>
+        </div>
+        {dayPlans.length === 0 ? (
+          <div className="py-4 text-center text-sm text-ink2 flex flex-col items-center gap-1">
+            <CalendarCheck size={20} className="text-ink2/40" />
+            暂无今日计划，添加一条开始今天的工作
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {dayPlans.map((t) => {
+              const done = t.status === 'completed';
+              return (
+                <li key={t.id} className="py-2 flex items-center gap-3 group">
+                  <input
+                    type="checkbox"
+                    checked={done}
+                    onChange={() => void toggleDayPlan(t)}
+                    className="w-4 h-4 accent-primary shrink-0"
+                  />
+                  <span
+                    className={
+                      'text-sm flex-1 min-w-0 truncate ' +
+                      (done ? 'text-ink2 line-through' : 'text-ink')
+                    }
+                    title={t.title}
+                  >
+                    {t.title}
+                  </span>
+                  <span className="text-[11px] text-ink2 shrink-0">
+                    {t.start_time}–{t.end_time}
+                  </span>
+                  <button
+                    onClick={() => void removeDayPlan(t.id)}
+                    className="p-1 rounded-pix text-ink2 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                    title="删除"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Card title="工作分类统计" hoverable={false}>

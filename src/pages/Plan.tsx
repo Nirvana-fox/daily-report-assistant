@@ -104,8 +104,6 @@ export default function Plan() {
       defaultPeriod = 'month';
       defaultStart = today.startOf('month');
       defaultEnd = today.endOf('month');
-    } else if (period === 'day') {
-      defaultPeriod = 'day';
     }
 
     setTaskForm({
@@ -277,8 +275,9 @@ export default function Plan() {
   const weekTasks = useMemo(() => {
     const start = currentDate.startOf('week');
     const end = currentDate.endOf('week');
+    // 周规划只显示周层级任务；日层级任务属于「今日工作」页
     return tasks.filter(t => {
-      if (t.period !== 'week' && t.period !== 'day') return false;
+      if (t.period !== 'week') return false;
       const taskStart = dayjs(t.start_date);
       const taskEnd = dayjs(t.end_date);
       return taskStart.isBefore(end) && taskEnd.isAfter(start);
@@ -289,7 +288,7 @@ export default function Plan() {
     const year = currentDate.year();
     const month = currentDate.month();
     return tasks.filter(t => {
-      if (t.period !== 'month' && t.period !== 'week' && t.period !== 'day') return false;
+      if (t.period !== 'month' && t.period !== 'week') return false;
       const taskStart = dayjs(t.start_date);
       return taskStart.year() === year && taskStart.month() === month;
     });
@@ -523,11 +522,12 @@ export default function Plan() {
       setView('week');
     };
 
+    // 点击日期：创建落在该天的周任务（日计划请在「今日工作」页添加）
     const handleDayClick = (day: dayjs.Dayjs) => {
       if (!isDayInMonth(day)) return;
-      openCreateTask(undefined, 'day');
-      taskForm.start_date = day.format('YYYY-MM-DD');
-      taskForm.end_date = day.format('YYYY-MM-DD');
+      const dateStr = day.format('YYYY-MM-DD');
+      openCreateTask(undefined, 'week');
+      setTaskForm((f) => ({ ...f, start_date: dateStr, end_date: dateStr }));
     };
 
     const handleDragStart = (e: React.DragEvent, task: PlanTask) => {
@@ -1172,7 +1172,7 @@ export default function Plan() {
       <header className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-ink text-pix">规划</h1>
-          <p className="text-sm text-ink2 mt-1">分层周期规划：年目标 → 月任务 → 周执行</p>
+          <p className="text-sm text-ink2 mt-1">分层周期规划：年目标 → 月任务 → 周执行（日计划在「今日工作」页添加和查看）</p>
         </div>
         <Button
           icon={<Plus size={14} />}
@@ -1334,7 +1334,6 @@ export default function Plan() {
                     value={taskForm.period}
                     onChange={(e) => setTaskForm({ ...taskForm, period: e.target.value as PlanPeriod })}
                   >
-                    <option value="day">日</option>
                     <option value="week">周</option>
                     <option value="month">月</option>
                     <option value="year">年</option>
