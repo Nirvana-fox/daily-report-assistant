@@ -33,6 +33,7 @@ import Tabs from '../components/Tabs';
 import Spinner from '../components/Spinner';
 import { Input, Select, Textarea } from '../components/Input';
 import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialog';
+import { openPath } from '@tauri-apps/plugin-opener';
 import {
   accountChangePassword,
   accountLogin,
@@ -42,6 +43,7 @@ import {
   dataStats,
   exportData,
   importData,
+  moveDataLocation,
   purgeCategory,
   restartApp,
   listTemplates,
@@ -189,6 +191,32 @@ export default function Settings() {
       toast.error(`清理失败: ${e}`);
     } finally {
       setPurgingCat(null);
+    }
+  };
+
+  const [moving, setMoving] = useState(false);
+
+  const onMoveData = async () => {
+    try {
+      const dir = await openDialog({ directory: true, title: '选择新的数据保存目录' });
+      if (!dir || typeof dir !== 'string') return;
+      if (
+        !confirm(
+          `将把数据库和全部截图复制到：\n${dir}\n\n并更新配置（旧目录文件保留）。确认继续？`
+        )
+      )
+        return;
+      setMoving(true);
+      const msg = await moveDataLocation(dir);
+      toast.success(String(msg));
+      if (confirm('迁移完成，现在重启应用使新位置生效吗？')) {
+        await restartApp();
+      }
+      await refreshDataStats();
+    } catch (e: any) {
+      toast.error(`迁移失败: ${e}`);
+    } finally {
+      setMoving(false);
     }
   };
 
@@ -1635,6 +1663,64 @@ export default function Settings() {
         {tab === 'data' && (
           <>
           <Card
+            title="数据存储位置"
+            description="数据库与截图默认保存在用户目录；可整体迁移到任意位置（如 D 盘或 NAS 挂载盘）"
+            hoverable={false}
+          >
+            <div className="space-y-2 mb-3">
+              <div className="flex items-start gap-2 text-sm">
+                <span className="text-ink2 w-20 shrink-0">数据库</span>
+                <span className="text-ink font-mono text-xs break-all bg-bg/50 rounded-pix px-2 py-1 flex-1">
+                  {dStats?.db_path || '—'}
+                </span>
+              </div>
+              <div className="flex items-start gap-2 text-sm">
+                <span className="text-ink2 w-20 shrink-0">截图目录</span>
+                <span className="text-ink font-mono text-xs break-all bg-bg/50 rounded-pix px-2 py-1 flex-1">
+                  {dStats?.screenshot_dir || '—'}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Folder size={13} />}
+                onClick={() => {
+                  if (dStats?.db_path)
+                    void openPath(dStats.db_path).catch((e) => toast.error(`打开失败: ${e}`));
+                }}
+              >
+                打开数据目录
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Folder size={13} />}
+                onClick={() => {
+                  if (dStats?.screenshot_dir)
+                    void openPath(dStats.screenshot_dir).catch((e) =>
+                      toast.error(`打开失败: ${e}`)
+                    );
+                }}
+              >
+                打开截图目录
+              </Button>
+              <Button
+                size="sm"
+                icon={<FolderOpen size={13} />}
+                loading={moving}
+                onClick={() => void onMoveData()}
+              >
+                迁移到新位置…
+              </Button>
+            </div>
+            <p className="text-[11px] text-ink3 mt-2">
+              迁移 = 复制数据库 + 全部截图到新目录并切换配置；旧目录文件保留，确认正常后可手动删除
+            </p>
+          </Card>
+
+          <Card
             title="数据分类管理"
             description="查看各类数据量，按需清理（可同步删除截图文件，或只删记录保留文件）"
             hoverable={false}
@@ -1938,7 +2024,7 @@ export default function Settings() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-bg/50 rounded-pix p-3 border border-border">
                   <div className="text-xs text-ink2">版本号</div>
-                  <div className="text-lg font-semibold text-ink mt-1">v1.7.1</div>
+                  <div className="text-lg font-semibold text-ink mt-1">v1.7.2</div>
                 </div>
                 <div className="bg-bg/50 rounded-pix p-3 border border-border">
                   <div className="text-xs text-ink2">更新日期</div>

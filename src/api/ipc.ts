@@ -393,6 +393,8 @@ export const dataStats = () =>
     assistant_messages: 0, app_usage_sessions: 0,
     screenshots: { file_count: 0, total_bytes: 0 },
     db_bytes: 0,
+    db_path: '',
+    screenshot_dir: '',
   });
 
 export const purgeCategory = (
@@ -412,6 +414,9 @@ export const importData = (path: string, password: string) =>
   safeInvoke<string>('import_data', { path, password }, '');
 
 export const restartApp = () => safeInvoke<void>('restart_app');
+
+export const moveDataLocation = (newDir: string) =>
+  safeInvoke<string>('move_data_location', { newDir }, '');
 
 export const accountStatus = () =>
   safeInvoke<AccountStatus>('account_status', undefined, {

@@ -176,6 +176,7 @@ fn main() {
             commands::push_run_now,
             commands::data_stats,
             commands::purge_category,
+            commands::move_data_location,
             commands::export_data,
             commands::import_data,
             commands::restart_app,

@@ -1474,6 +1474,10 @@ pub struct DataStats {
     pub counts: report_assistant_core::storage::DataCounts,
     pub screenshots: ScreenshotDirStats,
     pub db_bytes: i64,
+    /// 当前数据库文件路径
+    pub db_path: String,
+    /// 当前截图目录
+    pub screenshot_dir: String,
 }
 
 /// 各数据类别统计（含截图文件数/大小、数据库大小）。
@@ -1500,7 +1504,17 @@ pub async fn data_stats(state: State<'_, AppStateHandle>) -> Result<DataStats, S
         let db_bytes = std::fs::metadata(&db_path)
             .map(|m| m.len() as i64)
             .unwrap_or(0);
-        Ok(DataStats { counts, screenshots, db_bytes })
+        let screenshot_dir = cfg
+            .resolved_screenshot_dir()
+            .map(|d| d.to_string_lossy().to_string())
+            .unwrap_or_default();
+        Ok(DataStats {
+            counts,
+            screenshots,
+            db_bytes,
+            db_path: db_path.to_string_lossy().to_string(),
+            screenshot_dir,
+        })
     })
     .await
     .map_err(|e| e.to_string())?
@@ -1561,6 +1575,105 @@ pub async fn purge_category(
         }
     }
     Ok(PurgeCategoryResult { deleted_rows, deleted_files })
+}
+
+// ---------------------------------------------------------------------------
+// 数据存储位置迁移
+// ---------------------------------------------------------------------------
+
+/// 递归复制目录。
+fn copy_dir_recursive(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
+    std::fs::create_dir_all(dst).map_err(|e| format!("创建目录失败: {e}"))?;
+    for entry in std::fs::read_dir(src).map_err(|e| format!("读取目录失败: {e}"))? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let ty = entry.file_type().map_err(|e| e.to_string())?;
+        let target = dst.join(entry.file_name());
+        if ty.is_dir() {
+            copy_dir_recursive(&entry.path(), &target)?;
+        } else {
+            std::fs::copy(entry.path(), &target)
+                .map_err(|e| format!("复制 {} 失败: {e}", entry.path().display()))?;
+        }
+    }
+    Ok(())
+}
+
+/// 把数据库与截图迁移到新目录：
+/// 拷贝 data.sqlite（先 WAL 合流）+ 截图目录 → 更新配置 → 重启后生效。
+/// 旧目录文件保留（安全起见不自动删除）。
+#[tauri::command(rename_all = "camelCase")]
+pub async fn move_data_location(
+    state: State<'_, AppStateHandle>,
+    new_dir: String,
+) -> Result<String, String> {
+    use paths::expand_tilde;
+    let new_root = expand_tilde(new_dir.trim());
+    if new_root.as_os_str().is_empty() {
+        return Err("目标目录不能为空".to_string());
+    }
+
+    let cfg = state.config.lock().clone();
+    let old_db = cfg.resolved_db_path().map_err(|e| e.to_string())?;
+    let new_db = new_root.join("data.sqlite");
+    if old_db == new_db {
+        return Err("新位置与当前数据库位置相同".to_string());
+    }
+    let old_shots = cfg.resolved_screenshot_dir().map_err(|e| e.to_string())?;
+    let new_shots = new_root.join("screenshots");
+
+    // 生成期间暂停截图监听
+    let watch_handle = { state.watch.lock().clone() };
+    if let Some(h) = watch_handle.as_ref() {
+        if h.is_running() {
+            h.pause();
+        }
+    }
+
+    let new_root_c = new_root.clone();
+    let new_db_c = new_db.clone();
+    let new_shots_c = new_shots.clone();
+    let result = tokio::task::spawn_blocking(move || -> Result<(), String> {
+        let new_root = &new_root_c;
+        let new_db = &new_db_c;
+        let new_shots = &new_shots_c;
+        std::fs::create_dir_all(new_root).map_err(|e| format!("创建目标目录失败: {e}"))?;
+        // WAL 合流后复制数据库
+        {
+            let conn = rusqlite::Connection::open(&old_db).map_err(|e| e.to_string())?;
+            conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+                .map_err(|e| e.to_string())?;
+        }
+        std::fs::copy(&old_db, &new_db)
+            .map_err(|e| format!("复制数据库失败: {e}"))?;
+        // 复制截图目录（存在才复制）
+        if old_shots.is_dir() {
+            copy_dir_recursive(&old_shots, &new_shots)?;
+        }
+        Ok(())
+    })
+    .await;
+
+    if let Some(h) = watch_handle.as_ref() {
+        if h.is_running() {
+            h.resume();
+        }
+    }
+
+    result.map_err(|e| e.to_string())??;
+
+    {
+        let mut c = state.config.lock();
+        c.db_path = new_db.to_string_lossy().to_string();
+        c.screenshot.output_dir = new_shots.to_string_lossy().to_string();
+        config::save(&c).map_err(|e| e.to_string())?;
+    }
+    tracing::info!("数据已迁移至 {}", new_root.display());
+    Ok(format!(
+        "已迁移至 {}
+（旧目录文件已保留，确认新位置正常后可手动删除）
+重启应用后生效。",
+        new_root.display()
+    ))
 }
 
 // ---------------------------------------------------------------------------

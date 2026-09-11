@@ -286,6 +286,8 @@ export interface DataStats {
   app_usage_sessions: number;
   screenshots: { file_count: number; total_bytes: number };
   db_bytes: number;
+  db_path: string;
+  screenshot_dir: string;
 }
 
 export interface PurgeCategoryResult {
