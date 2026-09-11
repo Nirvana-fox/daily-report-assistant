@@ -266,7 +266,7 @@ export const updateTemplate = (key: string, label: string, systemPrompt: string,
 export const deleteTemplate = (key: string) =>
   safeInvoke<boolean>('delete_template', { key }, false);
 
-export const addPlanTask = (request: {
+export const addPlanTask = async (request: {
   title: string;
   description: string;
   start_date: string;
@@ -280,7 +280,7 @@ export const addPlanTask = (request: {
   status: string;
   parent_id: number | null;
   period: string;
-}) => safeInvoke<number>('add_plan_task', { request }, 0);
+}) => invoke<number>('add_plan_task', { request });
 
 export const updatePlanTask = (request: {
   id: number;
@@ -297,15 +297,15 @@ export const updatePlanTask = (request: {
   status: string;
   parent_id: number | null;
   period: string;
-}) => safeInvoke<boolean>('update_plan_task', { request }, false);
+}) => invoke<boolean>('update_plan_task', { request });
 
-export const deletePlanTask = (id: number) =>
-  safeInvoke<boolean>('delete_plan_task', { id }, false);
+export const deletePlanTask = async (id: number) =>
+  invoke<boolean>('delete_plan_task', { id });
 
 export const listPlanTasks = (startDate?: string, endDate?: string) => {
   const args: Record<string, unknown> = {};
-  if (startDate) args.start_date = startDate;
-  if (endDate) args.end_date = endDate;
+  if (startDate) args.startDate = startDate;
+  if (endDate) args.endDate = endDate;
   return safeInvoke<PlanTask[]>('list_plan_tasks', args, []);
 };
 

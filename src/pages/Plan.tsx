@@ -275,9 +275,9 @@ export default function Plan() {
   const weekTasks = useMemo(() => {
     const start = currentDate.startOf('week');
     const end = currentDate.endOf('week');
-    // 周规划只显示周层级任务；日层级任务属于「今日工作」页
+    // 周视图：周任务 + 日任务（日计划在「今日工作」添加，这里同步展示）
     return tasks.filter(t => {
-      if (t.period !== 'week') return false;
+      if (t.period !== 'week' && t.period !== 'day') return false;
       const taskStart = dayjs(t.start_date);
       const taskEnd = dayjs(t.end_date);
       return taskStart.isBefore(end) && taskEnd.isAfter(start);
@@ -288,7 +288,7 @@ export default function Plan() {
     const year = currentDate.year();
     const month = currentDate.month();
     return tasks.filter(t => {
-      if (t.period !== 'month' && t.period !== 'week') return false;
+      if (t.period !== 'month' && t.period !== 'week' && t.period !== 'day') return false;
       const taskStart = dayjs(t.start_date);
       return taskStart.year() === year && taskStart.month() === month;
     });

@@ -1675,3 +1675,17 @@ fn parse_vision_text(text: &str) -> (String, String, String, Vec<String>) {
 // 让 `Arc` 在 doc 测试 / 文档示例中可见，避免未使用 import 的警告。
 #[allow(dead_code)]
 fn _arc_marker(_: Arc<()>) {}
+
+#[cfg(test)]
+mod plan_payload_tests {
+    use super::*;
+
+    /// 今日计划快捷添加的确切 payload 必须能被 PlanTaskCreateRequest 反序列化
+    #[test]
+    fn plan_create_request_deserializes() {
+        let json = r#"{"title":"下午对齐需求","description":"","start_date":"2026-09-11","end_date":"2026-09-11","start_time":"09:00","end_time":"18:00","cycle_type":"single","priority":"medium","tags":"[]","progress":0,"status":"pending","parent_id":null,"period":"day"}"#;
+        let r: PlanTaskCreateRequest = serde_json::from_str(json).expect("反序列化失败");
+        assert_eq!(r.period, "day");
+        assert_eq!(r.parent_id, None);
+    }
+}

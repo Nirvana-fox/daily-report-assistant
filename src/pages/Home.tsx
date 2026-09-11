@@ -92,6 +92,10 @@ export default function Home() {
 
   const [busy, setBusy] = useState<{ [k: string]: boolean }>({});
   const [llmMode, setLlmMode] = useState<LlmMode | null>(null);
+  // 活力图视图（与热力图页共用 localStorage，保持同步）
+  const [heatView, setHeatView] = useState<'daily' | 'weekly'>(
+    () => (localStorage.getItem('heatmap-view') as 'daily' | 'weekly') || 'daily'
+  );
 
   // 加载并订阅 LLM 模式（云端 / 本地）
   useEffect(() => {
@@ -155,7 +159,7 @@ export default function Home() {
       const weekEnd = dayjs().endOf('week').toISOString();
       const [cats, daily, srcs] = await Promise.all([
         categoryStats(weekStart, weekEnd),
-        dailyStats(30),
+        dailyStats(95),
         sourceStats(weekStart, weekEnd),
       ]);
       setCategories(cats);
@@ -531,28 +535,40 @@ export default function Home() {
           </div>
         </Card>
 
-        <Card title="活动热力图" description="最近30天工作记录">
-          <div className="grid grid-cols-5 gap-1">
-            {Array.from({ length: 30 }).map((_, i) => {
-              const date = dayjs().subtract(29 - i, 'day');
-              const dateStr = date.format('YYYY-MM-DD');
-              const stat = dailyData.find((d) => d.day === dateStr);
-              const count = stat?.count ?? 0;
-              const intensity = count === 0 ? 0 : count < 5 ? 1 : count < 10 ? 2 : count < 20 ? 3 : 4;
-              const colors = ['bg-bg', 'bg-primary-100', 'bg-primary-300', 'bg-primary-500', 'bg-primary-700'];
-              return (
-                <div
-                  key={dateStr}
-                  className={clsx('w-full aspect-square rounded-sm', colors[intensity])}
-                  title={`${dateStr}: ${count} 条记录`}
-                />
-              );
-            })}
+        <Card
+          title="活力图"
+          description="近3个月活跃度"
+        >
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex bg-bg rounded-pix p-0.5 border border-border">
+              {(['daily', 'weekly'] as const).map((v) => (
+                <button
+                  key={v}
+                  onClick={() => {
+                    setHeatView(v);
+                    localStorage.setItem('heatmap-view', v);
+                  }}
+                  className={clsx(
+                    'px-2 py-0.5 text-[11px] font-medium rounded-pix transition-colors',
+                    heatView === v ? 'bg-primary text-white' : 'text-ink2 hover:text-ink'
+                  )}
+                >
+                  {v === 'daily' ? '每日' : '每周'}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => navigate('/heatmap')}
+              className="text-[11px] text-primary-600 hover:underline"
+            >
+              完整热力图 →
+            </button>
           </div>
-          <div className="flex items-center justify-end gap-2 mt-3 text-[11px] text-ink2">
+          <MiniContribution daily={dailyData} view={heatView} />
+          <div className="flex items-center gap-1.5 justify-end mt-2 text-[10px] text-ink2">
             <span>少</span>
-            {['bg-bg', 'bg-primary-100', 'bg-primary-300', 'bg-primary-500', 'bg-primary-700'].map((c, i) => (
-              <div key={i} className={clsx('w-3 h-3 rounded-sm', c)} />
+            {['bg-bg2', 'bg-primary-100', 'bg-primary-300', 'bg-primary-500', 'bg-primary-700'].map((c, i) => (
+              <div key={i} className={clsx('w-2.5 h-2.5 rounded-[2px]', c)} />
             ))}
             <span>多</span>
           </div>
@@ -623,6 +639,127 @@ export default function Home() {
           </ul>
         )}
       </Card>
+    </div>
+  );
+}
+
+/** 迷你贡献图：横向周列 × 纵向周一~日，与热力图页同款配色 */
+function MiniContribution({
+  daily,
+  view,
+}: {
+  daily: DailyStat[];
+  view: 'daily' | 'weekly';
+}) {
+  const countMap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const d of daily) m.set(d.day, d.count);
+    return m;
+  }, [daily]);
+
+  const columns = useMemo(() => {
+    const today = dayjs();
+    const rawStart = today.subtract(3, 'month');
+    const gridStart = rawStart.subtract((rawStart.day() + 6) % 7, 'day');
+    const cols: { days: (dayjs.Dayjs | null)[]; counts: number[]; total: number }[] = [];
+    let cur = gridStart;
+    let prevMonth = -1;
+    while (cur.isBefore(today) || cur.isSame(today, 'day')) {
+      const days: (dayjs.Dayjs | null)[] = [];
+      const counts: number[] = [];
+      let total = 0;
+      for (let i = 0; i < 7; i++) {
+        const d = cur.add(i, 'day');
+        if (d.isAfter(today, 'day') || d.isBefore(rawStart, 'day')) {
+          days.push(null);
+          counts.push(0);
+        } else {
+          const c = countMap.get(d.format('YYYY-MM-DD')) ?? 0;
+          days.push(d);
+          counts.push(c);
+          total += c;
+        }
+      }
+      const thursday = cur.add(3, 'day');
+      const label = thursday.month() !== prevMonth ? `${thursday.month() + 1}月` : undefined;
+      prevMonth = thursday.month();
+      cols.push({ days, counts, total, ...(label !== undefined ? { monthLabel: label } : {}) } as any);
+      cur = cur.add(7, 'day');
+    }
+    return cols;
+  }, [countMap]);
+
+  const maxTotal = Math.max(...columns.map((c) => c.total), 1);
+  const levelOf = (count: number, colTotal: number): number => {
+    if (view === 'weekly') {
+      if (maxTotal <= 0 || colTotal <= 0) return 0;
+      const r = colTotal / maxTotal;
+      return r < 0.25 ? 1 : r < 0.5 ? 2 : r < 0.75 ? 3 : 4;
+    }
+    if (count <= 0) return 0;
+    if (count < 3) return 1;
+    if (count < 6) return 2;
+    if (count < 10) return 3;
+    return 4;
+  };
+  const classes = [
+    'bg-bg2 border border-border/50',
+    'bg-primary-100',
+    'bg-primary-300',
+    'bg-primary-500',
+    'bg-primary-700',
+  ];
+
+  return (
+    <div className="overflow-x-auto">
+      <div className="flex gap-[2px] min-w-[180px]">
+        <div className="flex flex-col gap-[2px] mr-0.5 shrink-0">
+          <div className="h-[10px]" />
+          {['', '', '', '', '', '', ''].map((_, i) => (
+            <div key={i} className="h-[10px]" />
+          ))}
+        </div>
+        <div className="flex flex-col gap-[2px] flex-1">
+          {view === 'weekly' ? (
+            <div className="flex gap-[2px]">
+              {columns.map((col, ci) => (
+                <div
+                  key={ci}
+                  className={clsx('flex-1 min-w-[8px] h-[10px] rounded-[2px]', classes[Math.max(levelOf(0, col.total), 0)])}
+                  title={`本周：${col.total} 条记录`}
+                />
+              ))}
+            </div>
+          ) : (
+            [0, 1, 2, 3, 4, 5, 6].map((row) => (
+              <div key={row} className="flex gap-[2px]">
+                {columns.map((col, ci) => {
+                  const d = col.days[row];
+                  const count = col.counts[row];
+                  return (
+                    <div
+                      key={ci}
+                      className={clsx(
+                        'flex-1 min-w-[8px] h-[10px] rounded-[2px]',
+                        !d ? 'opacity-0' : classes[levelOf(count, col.total)],
+                        d?.isSame(dayjs(), 'day') && 'ring-1 ring-primary-400'
+                      )}
+                      title={d ? `${d.format('MM-DD')}：${count} 条` : ''}
+                    />
+                  );
+                })}
+              </div>
+            ))
+          )}
+          <div className="flex gap-[2px] mt-0.5">
+            {columns.map((col, ci) => (
+              <div key={ci} className="flex-1 min-w-[8px] text-[8px] text-ink2 whitespace-nowrap">
+                {(col as any).monthLabel ?? ''}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

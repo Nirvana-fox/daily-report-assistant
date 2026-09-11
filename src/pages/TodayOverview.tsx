@@ -48,7 +48,7 @@ export default function TodayOverview() {
     if (!title) return;
     setAddingPlan(true);
     try {
-      await addPlanTask({
+      const id = await addPlanTask({
         title,
         description: '',
         start_date: today,
@@ -63,6 +63,7 @@ export default function TodayOverview() {
         parent_id: null,
         period: 'day',
       });
+      if (!id || id <= 0) throw new Error('写入失败（未返回记录 id）');
       setNewPlanTitle('');
       await fetchDayPlans();
       toast.success('已加入今日计划');

@@ -62,7 +62,9 @@ interface Column {
 
 export default function HeatMap() {
   const toast = useToast();
-  const [view, setView] = useState<ViewMode>('daily');
+  const [view, setView] = useState<ViewMode>(
+    () => (localStorage.getItem('heatmap-view') as ViewMode) || 'daily'
+  );
   const [range, setRange] = useState<RangeKey>('1y');
   const [daily, setDaily] = useState<DailyStat[]>([]);
   const [heat, setHeat] = useState<HeatMapRecord[]>([]);
@@ -200,7 +202,10 @@ export default function HeatMap() {
             {VIEW_OPTIONS.map((v) => (
               <button
                 key={v.key}
-                onClick={() => setView(v.key)}
+                onClick={() => {
+                  setView(v.key);
+                  localStorage.setItem('heatmap-view', v.key);
+                }}
                 className={clsx(
                   'px-3 py-1 text-xs font-medium rounded-pix transition-colors',
                   view === v.key ? 'bg-primary text-white' : 'text-ink2 hover:text-ink'
