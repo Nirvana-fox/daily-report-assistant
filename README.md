@@ -3,7 +3,7 @@
   <h1>日报助手 · Daily Report Assistant</h1>
   <p><strong>AI 驱动的工作日报 / 周报 / 月报生成工具</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/version-1.6.0-blue" />
+    <img src="https://img.shields.io/badge/version-1.6.1-blue" />
     <img src="https://img.shields.io/badge/Rust-1.94+-CE422B?logo=rust&logoColor=white" />
     <img src="https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white" />
     <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" />

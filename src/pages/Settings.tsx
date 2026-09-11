@@ -1580,7 +1580,7 @@ export default function Settings() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-bg/50 rounded-pix p-3 border border-border">
                   <div className="text-xs text-ink2">版本号</div>
-                  <div className="text-lg font-semibold text-ink mt-1">v1.6.0</div>
+                  <div className="text-lg font-semibold text-ink mt-1">v1.6.1</div>
                 </div>
                 <div className="bg-bg/50 rounded-pix p-3 border border-border">
                   <div className="text-xs text-ink2">更新日期</div>
