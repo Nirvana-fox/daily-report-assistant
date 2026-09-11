@@ -100,6 +100,11 @@ export interface GitConfig {
   poll_interval_seconds: number;
 }
 
+export interface AccountConfig {
+  /** 启用登录（启动需输入密码） */
+  enabled: boolean;
+}
+
 export interface ShortcutConfig {
   /** 切换本地模型分析模式的全局热键；空字符串禁用 */
   local_llm_toggle: string;
@@ -116,6 +121,7 @@ export interface Config {
   shortcuts: ShortcutConfig;
   profile: ProfileConfig;
   push: PushConfig;
+  account: AccountConfig;
   db_path: string;
 }
 
@@ -260,6 +266,37 @@ export interface PushStats {
   report_id: number;
   weekly_report_id: number;
   deliveries: [string, boolean, string][];
+}
+
+export interface DataCounts {
+  work_logs: number;
+  reports: number;
+  todos: number;
+  plan_tasks: number;
+  assistant_messages: number;
+  app_usage_sessions: number;
+}
+
+export interface DataStats {
+  work_logs: number;
+  reports: number;
+  todos: number;
+  plan_tasks: number;
+  assistant_messages: number;
+  app_usage_sessions: number;
+  screenshots: { file_count: number; total_bytes: number };
+  db_bytes: number;
+}
+
+export interface PurgeCategoryResult {
+  deleted_rows: number;
+  deleted_files: number;
+}
+
+export interface AccountStatus {
+  enabled: boolean;
+  has_account: boolean;
+  username: string | null;
 }
 
 export interface AssistantMessageRow {

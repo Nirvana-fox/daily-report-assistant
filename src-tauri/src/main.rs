@@ -37,7 +37,32 @@ fn main() {
     let db_path = cfg
         .resolved_db_path()
         .unwrap_or_else(|_| PathBuf::from("data.sqlite"));
-    
+
+    // 导入恢复：存在待恢复数据库则替换（由 import_data 命令写入 + 前端触发重启）
+    {
+        let pending = db_path.with_extension("sqlite.pending-import");
+        if pending.exists() {
+            match std::fs::read(&pending) {
+                Ok(bytes) if bytes.starts_with(b"SQLite format 3") => {
+                    for suffix in ["-wal", "-shm"] {
+                        let sidecar = PathBuf::from(format!("{}{}", db_path.display(), suffix));
+                        let _ = std::fs::remove_file(&sidecar);
+                    }
+                    match std::fs::write(&db_path, &bytes) {
+                        Ok(_) => {
+                            let _ = std::fs::remove_file(&pending);
+                            println!("数据库已从加密备份恢复: {}", db_path.display());
+                        }
+                        Err(e) => eprintln!("恢复数据库失败: {e}"),
+                    }
+                }
+                _ => {
+                    let _ = std::fs::remove_file(&pending);
+                }
+            }
+        }
+    }
+
     let storage = match Storage::open(&db_path) {
         Ok(s) => {
             println!("数据库打开成功: {}", db_path.display());
@@ -146,6 +171,16 @@ fn main() {
             commands::assistant_clear_history,
             commands::save_assistant_report,
             commands::push_run_now,
+            commands::data_stats,
+            commands::purge_category,
+            commands::export_data,
+            commands::import_data,
+            commands::restart_app,
+            commands::account_status,
+            commands::account_setup,
+            commands::account_login,
+            commands::account_change_password,
+            commands::account_set_enabled,
         ])
         .setup(|app| {
             tray::setup(app.handle())?;

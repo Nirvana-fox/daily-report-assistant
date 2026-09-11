@@ -21,6 +21,10 @@ import {
   X,
   Bell,
   Send,
+  Lock,
+  Download,
+  UploadCloud,
+  Folder,
 } from 'lucide-react';
 
 import Card from '../components/Card';
@@ -28,7 +32,18 @@ import Button from '../components/Button';
 import Tabs from '../components/Tabs';
 import Spinner from '../components/Spinner';
 import { Input, Select, Textarea } from '../components/Input';
+import { save as saveDialog, open as openDialog } from '@tauri-apps/plugin-dialog';
 import {
+  accountChangePassword,
+  accountLogin,
+  accountSetEnabled,
+  accountSetup,
+  accountStatus,
+  dataStats,
+  exportData,
+  importData,
+  purgeCategory,
+  restartApp,
   listTemplates,
   nasSyncNow,
   nasTestConnection,
@@ -41,7 +56,9 @@ import {
 } from '../api/ipc';
 import { useConfig } from '../hooks/useConfig';
 import type {
+  AccountStatus,
   Config,
+  DataStats,
   LlmProvider,
   ReportTemplate,
   StorageStats,
@@ -49,7 +66,7 @@ import type {
 import { useToast } from '../hooks/useToast';
 import dayjs from 'dayjs';
 
-type TabKey = 'llm' | 'ai' | 'push' | 'screenshot' | 'nas' | 'report' | 'app' | 'data' | 'about';
+type TabKey = 'llm' | 'ai' | 'push' | 'screenshot' | 'nas' | 'report' | 'app' | 'data' | 'account' | 'about';
 
 const SETTING_TABS = [
   { key: 'llm' as const, label: 'LLM', icon: <Cpu size={14} /> },
@@ -60,6 +77,7 @@ const SETTING_TABS = [
   { key: 'report' as const, label: '报告', icon: <FileText size={14} /> },
   { key: 'app' as const, label: '应用', icon: <SettingsIcon size={14} /> },
   { key: 'data' as const, label: '数据', icon: <Database size={14} /> },
+  { key: 'account' as const, label: '账号', icon: <Lock size={14} /> },
   { key: 'about' as const, label: '关于', icon: <Info size={14} /> },
 ];
 
@@ -88,6 +106,22 @@ export default function Settings() {
   const [nasSyncing, setNasSyncing] = useState(false);
   // 推送测试
   const [pushTesting, setPushTesting] = useState(false);
+  // 数据管理
+  const [dStats, setDStats] = useState<DataStats | null>(null);
+  const [purgeFiles, setPurgeFiles] = useState(true);
+  const [purgingCat, setPurgingCat] = useState<string | null>(null);
+  // 加密备份
+  const [expPwd, setExpPwd] = useState('');
+  const [impPwd, setImpPwd] = useState('');
+  const [backupBusy, setBackupBusy] = useState<'export' | 'import' | null>(null);
+  // 账号
+  const [acct, setAcct] = useState<AccountStatus | null>(null);
+  const [acctUser, setAcctUser] = useState('');
+  const [acctNewPwd, setAcctNewPwd] = useState('');
+  const [acctNewPwd2, setAcctNewPwd2] = useState('');
+  const [acctOldPwd, setAcctOldPwd] = useState('');
+  const [acctTogglePwd, setAcctTogglePwd] = useState('');
+  const [acctBusy, setAcctBusy] = useState(false);
   // AI 资料弹窗
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showCustomModal, setShowCustomModal] = useState(false);
@@ -118,6 +152,95 @@ export default function Settings() {
   useEffect(() => {
     void refreshStats();
   }, []);
+
+  const refreshDataStats = async () => {
+    try {
+      setDStats(await dataStats());
+    } catch {
+      /* ignore */
+    }
+  };
+
+  useEffect(() => {
+    if (tab === 'data') void refreshDataStats();
+  }, [tab]);
+
+  useEffect(() => {
+    void accountStatus().then(setAcct).catch(() => {});
+  }, []);
+
+  const fmtBytes = (n: number) => {
+    if (n < 1024) return `${n} B`;
+    if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+    return `${(n / 1024 / 1024).toFixed(1)} MB`;
+  };
+
+  const onPurgeCategory = async (category: string, label: string, keepDays: number | null) => {
+    if (!confirm(`确认清理「${label}」${keepDays ? `${keepDays} 天前的` : '全部'}数据？不可恢复。`)) return;
+    setPurgingCat(category);
+    try {
+      const r = await purgeCategory(category, keepDays, purgeFiles && category === 'work_logs');
+      toast.success(
+        `已清理：${r.deleted_rows} 条记录${r.deleted_files > 0 ? `、${r.deleted_files} 个截图文件` : ''}`
+      );
+      await refreshDataStats();
+      await refreshStats();
+    } catch (e: any) {
+      toast.error(`清理失败: ${e}`);
+    } finally {
+      setPurgingCat(null);
+    }
+  };
+
+  const onExport = async () => {
+    if (!expPwd) {
+      toast.error('请先设置导出密码');
+      return;
+    }
+    try {
+      const path = await saveDialog({
+        defaultPath: `日报助手备份-${dayjs().format('YYYYMMDD-HHmmss')}.dabak`,
+        filters: [{ name: '加密备份', extensions: ['dabak'] }],
+      });
+      if (!path || typeof path !== 'string') return;
+      setBackupBusy('export');
+      const size = await exportData(path, expPwd);
+      toast.success(`已导出加密备份（${fmtBytes(size)}），密码请妥善保管`);
+      setExpPwd('');
+    } catch (e: any) {
+      toast.error(`导出失败: ${e}`);
+    } finally {
+      setBackupBusy(null);
+    }
+  };
+
+  const onImport = async () => {
+    if (!impPwd) {
+      toast.error('请先输入备份密码');
+      return;
+    }
+    try {
+      const path = await openDialog({
+        multiple: false,
+        filters: [{ name: '加密备份', extensions: ['dabak'] }],
+      });
+      if (!path || typeof path !== 'string') return;
+      if (!confirm('导入将覆盖当前全部数据（账号保留），确认继续？')) return;
+      setBackupBusy('import');
+      const msg = await importData(path, impPwd);
+      toast.success(`${msg}`);
+      if (
+        confirm('数据将在重启后完成恢复。现在重启应用吗？')
+      ) {
+        await restartApp();
+      }
+      setImpPwd('');
+    } catch (e: any) {
+      toast.error(`导入失败: ${e}`);
+    } finally {
+      setBackupBusy(null);
+    }
+  };
 
   if (loading || !draft) {
     return (
@@ -1510,9 +1633,125 @@ export default function Settings() {
 
         {/* Data */}
         {tab === 'data' && (
+          <>
+          <Card
+            title="数据分类管理"
+            description="查看各类数据量，按需清理（可同步删除截图文件，或只删记录保留文件）"
+            hoverable={false}
+          >
+            <label className="flex items-center gap-2 text-sm text-ink mb-3">
+              <input
+                type="checkbox"
+                checked={purgeFiles}
+                onChange={(e) => setPurgeFiles(e.target.checked)}
+                className="accent-primary"
+              />
+              清理工作记录时同时删除引用的截图文件（关闭则仅删记录、保留文件与路径）
+            </label>
+            <div className="divide-y divide-border border border-border rounded-md">
+              {([
+                ['work_logs', '工作记录', dStats?.work_logs],
+                ['reports', '报告', dStats?.reports],
+                ['todos', '待办', dStats?.todos],
+                ['plan_tasks', '规划任务', dStats?.plan_tasks],
+                ['assistant_messages', 'AI 对话', dStats?.assistant_messages],
+                ['app_usage_sessions', '应用时长会话', dStats?.app_usage_sessions],
+              ] as const).map(([cat, label, count]) => (
+                <div key={cat} className="flex items-center gap-3 px-3 py-2">
+                  <span className="text-sm text-ink flex-1">{label}</span>
+                  <span className="text-sm text-ink2 font-mono">{count ?? '—'} 条</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    icon={<Trash2 size={13} />}
+                    loading={purgingCat === cat}
+                    onClick={() => void onPurgeCategory(cat, label, null)}
+                  >
+                    清理
+                  </Button>
+                </div>
+              ))}
+              <div className="flex items-center gap-3 px-3 py-2">
+                <span className="text-sm text-ink flex-1 flex items-center gap-1.5">
+                  <Folder size={14} className="text-ink2" />
+                  截图文件
+                </span>
+                <span className="text-sm text-ink2 font-mono">
+                  {dStats ? `${dStats.screenshots.file_count} 个 · ${fmtBytes(dStats.screenshots.total_bytes)}` : '—'}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  icon={<Trash2 size={13} />}
+                  loading={purgingCat === 'screenshots'}
+                  onClick={() => void onPurgeCategory('screenshots', '截图文件', null)}
+                >
+                  清空
+                </Button>
+              </div>
+            </div>
+            <div className="mt-3 text-xs text-ink2">
+              数据库大小：{dStats ? fmtBytes(dStats.db_bytes) : '—'} · 截图保存目录在「截图」页设置
+            </div>
+          </Card>
+
+          <Card
+            title="加密备份"
+            description="导出为密码加密的 .dabak 文件（AES-256-GCM），含全部数据与截图路径；截图图片本体不打包。导入后自动恢复"
+            hoverable={false}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-ink flex items-center gap-1.5">
+                  <Download size={14} /> 导出备份
+                </div>
+                <Input
+                  label="备份密码"
+                  type="password"
+                  value={expPwd}
+                  onChange={(e) => setExpPwd(e.target.value)}
+                  placeholder="用于加密，忘记将无法恢复"
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Download size={13} />}
+                  loading={backupBusy === 'export'}
+                  disabled={!expPwd}
+                  onClick={() => void onExport()}
+                >
+                  选择位置并导出
+                </Button>
+              </div>
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-ink flex items-center gap-1.5">
+                  <UploadCloud size={14} /> 导入恢复
+                </div>
+                <Input
+                  label="备份密码"
+                  type="password"
+                  value={impPwd}
+                  onChange={(e) => setImpPwd(e.target.value)}
+                  placeholder="该备份文件的密码"
+                />
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<UploadCloud size={13} />}
+                  loading={backupBusy === 'import'}
+                  disabled={!impPwd}
+                  onClick={() => void onImport()}
+                >
+                  选择备份文件并导入
+                </Button>
+                <p className="text-[11px] text-ink3">导入会覆盖当前数据（账号保留），重启应用后生效</p>
+              </div>
+            </div>
+          </Card>
+
           <Card
             title="数据管理"
-            description="存储统计与清理"
+            description="按天数清理工作流水与报告"
             hoverable={false}
             footer={
               <div className="flex items-center gap-2 flex-wrap text-xs text-ink2">
@@ -1572,6 +1811,125 @@ export default function Settings() {
               </Button>
             </div>
           </Card>
+          </>
+        )}
+
+        {tab === 'account' && (
+          <>
+            <Card
+              title="本地账号"
+              description={
+                acct
+                  ? acct.has_account
+                    ? `账号：${acct.username ?? '-'} · 登录${acct.enabled ? '已启用（启动应用需输入密码）' : '未启用'}`
+                    : '尚未创建账号。创建后可启用启动登录，保护本地数据'
+                  : '加载中...'
+              }
+              hoverable={false}
+            >
+              {!acct?.has_account ? (
+                <div className="space-y-3 max-w-md">
+                  <Input label="用户名" value={acctUser} onChange={(e) => setAcctUser(e.target.value)} placeholder="例如：风雅" />
+                  <Input label="密码（至少 4 位）" type="password" value={acctNewPwd} onChange={(e) => setAcctNewPwd(e.target.value)} />
+                  <Input label="确认密码" type="password" value={acctNewPwd2} onChange={(e) => setAcctNewPwd2(e.target.value)} />
+                  <Button
+                    size="sm"
+                    icon={<Lock size={13} />}
+                    loading={acctBusy}
+                    disabled={!acctUser || !acctNewPwd || acctNewPwd !== acctNewPwd2}
+                    onClick={async () => {
+                      setAcctBusy(true);
+                      try {
+                        await accountSetup(acctUser, acctNewPwd);
+                        toast.success('账号已创建，登录已启用（下次启动生效）');
+                        setAcct(await accountStatus());
+                        setAcctNewPwd('');
+                        setAcctNewPwd2('');
+                      } catch (e: any) {
+                        toast.error(`创建失败: ${e}`);
+                      } finally {
+                        setAcctBusy(false);
+                      }
+                    }}
+                  >
+                    创建账号并启用登录
+                  </Button>
+                  <p className="text-[11px] text-ink3">
+                    账号只保存在本地数据库（密码 PBKDF2 加盐哈希，不存明文、不上传）。忘记密码只能删除数据库文件重置。
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-5 max-w-md">
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-ink">修改密码</div>
+                    <Input label="旧密码" type="password" value={acctOldPwd} onChange={(e) => setAcctOldPwd(e.target.value)} />
+                    <Input label="新密码（至少 4 位）" type="password" value={acctNewPwd} onChange={(e) => setAcctNewPwd(e.target.value)} />
+                    <Input label="确认新密码" type="password" value={acctNewPwd2} onChange={(e) => setAcctNewPwd2(e.target.value)} />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={acctBusy}
+                      disabled={!acctOldPwd || !acctNewPwd || acctNewPwd !== acctNewPwd2}
+                      onClick={async () => {
+                        setAcctBusy(true);
+                        try {
+                          await accountChangePassword(acctOldPwd, acctNewPwd);
+                          toast.success('密码已修改');
+                          setAcctOldPwd('');
+                          setAcctNewPwd('');
+                          setAcctNewPwd2('');
+                        } catch (e: any) {
+                          toast.error(`修改失败: ${e}`);
+                        } finally {
+                          setAcctBusy(false);
+                        }
+                      }}
+                    >
+                      修改密码
+                    </Button>
+                  </div>
+                  <div className="space-y-2 pt-3 border-t border-border">
+                    <div className="text-sm font-medium text-ink">
+                      启动登录：{acct.enabled ? '已启用' : '未启用'}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        label="输入密码以更改开关"
+                        type="password"
+                        value={acctTogglePwd}
+                        onChange={(e) => setAcctTogglePwd(e.target.value)}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant={acct.enabled ? 'danger' : 'secondary'}
+                        size="sm"
+                        loading={acctBusy}
+                        disabled={!acctTogglePwd}
+                        onClick={async () => {
+                          setAcctBusy(true);
+                          try {
+                            await accountSetEnabled(!acct.enabled, acctTogglePwd);
+                            toast.success(acct.enabled ? '已关闭启动登录' : '已启用启动登录');
+                            setAcct(await accountStatus());
+                            setAcctTogglePwd('');
+                          } catch (e: any) {
+                            toast.error(`操作失败: ${e}`);
+                          } finally {
+                            setAcctBusy(false);
+                          }
+                        }}
+                      >
+                        {acct.enabled ? '关闭启动登录' : '启用启动登录'}
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-ink3">
+                      测试登录功能：如果开启了「设置 → 应用 → 静默启动」，锁定界面同样会出现。
+                    </p>
+                  </div>
+                </div>
+              )}
+            </Card>
+          </>
         )}
 
         {tab === 'about' && (
@@ -1580,7 +1938,7 @@ export default function Settings() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-bg/50 rounded-pix p-3 border border-border">
                   <div className="text-xs text-ink2">版本号</div>
-                  <div className="text-lg font-semibold text-ink mt-1">v1.6.2</div>
+                  <div className="text-lg font-semibold text-ink mt-1">v1.7.0</div>
                 </div>
                 <div className="bg-bg/50 rounded-pix p-3 border border-border">
                   <div className="text-xs text-ink2">更新日期</div>

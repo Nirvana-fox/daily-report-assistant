@@ -45,6 +45,9 @@ const DEFAULT_CONFIG: Config = {
     weekly_day: 5,
     channels: [],
   },
+  account: {
+    enabled: false,
+  },
   app: {
     auto_launch_on_boot: false,
     silent_launch: false,

@@ -222,6 +222,13 @@ CREATE TABLE IF NOT EXISTS assistant_messages (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_assistant_messages_id ON assistant_messages(id);
+
+CREATE TABLE IF NOT EXISTS accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 "#;
 
 // ---------------------------------------------------------------------------
@@ -971,18 +978,131 @@ impl Storage {
         })
     }
 
-    /// 清空所有业务数据。AUTOINCREMENT 序列不重置，主键继续递增。
+    /// 清空所有业务数据（含规划/AI对话/应用时长/同步游标；账号表保留）。
     pub fn purge_all(&self) -> Result<PurgeStats> {
         let mut conn = self.pool.get()?;
         let tx = conn.transaction()?;
         let logs = tx.execute("DELETE FROM work_logs", [])?;
         let reports = tx.execute("DELETE FROM reports", [])?;
         let _ = tx.execute("DELETE FROM todos", [])?;
+        let _ = tx.execute("DELETE FROM plan_tasks", [])?;
+        let _ = tx.execute("DELETE FROM assistant_messages", [])?;
+        let _ = tx.execute("DELETE FROM app_usage_sessions", [])?;
+        let _ = tx.execute("DELETE FROM sync_state", [])?;
         tx.commit()?;
         Ok(PurgeStats {
             work_logs: logs as u64,
             reports: reports as u64,
         })
+    }
+
+    // -------------------- 数据管理（分类清理 / 统计） --------------------
+
+    /// 各类别行数。
+    pub fn data_counts(&self) -> Result<DataCounts> {
+        let conn = self.pool.get()?;
+        let one = |sql: &str| -> i64 {
+            conn.query_row(sql, [], |row| row.get::<_, i64>(0)).unwrap_or(0)
+        };
+        Ok(DataCounts {
+            work_logs: one("SELECT COUNT(*) FROM work_logs"),
+            reports: one("SELECT COUNT(*) FROM reports"),
+            todos: one("SELECT COUNT(*) FROM todos"),
+            plan_tasks: one("SELECT COUNT(*) FROM plan_tasks"),
+            assistant_messages: one("SELECT COUNT(*) FROM assistant_messages"),
+            app_usage_sessions: one("SELECT COUNT(*) FROM app_usage_sessions"),
+        })
+    }
+
+    /// 按类别清理数据。`cutoff_days = Some(n)` 只删 n 天前；None 全删。
+    /// 返回删除行数。`screenshots` 类别由 commands 层处理文件删除。
+    pub fn purge_category(&self, category: &str, cutoff_days: Option<i64>) -> Result<u64> {
+        let mut conn = self.pool.get()?;
+        let cutoff = cutoff_days
+            .map(|d| (Local::now() - chrono::Duration::days(d.max(0))).to_rfc3339());
+        let n = match category {
+            "work_logs" => match &cutoff {
+                Some(c) => conn.execute("DELETE FROM work_logs WHERE ts < ?1", params![c])?,
+                None => conn.execute("DELETE FROM work_logs", [])?,
+            },
+            "reports" => match &cutoff {
+                Some(c) => conn.execute("DELETE FROM reports WHERE period_end < ?1", params![c])?,
+                None => conn.execute("DELETE FROM reports", [])?,
+            },
+            "todos" => match &cutoff {
+                Some(c) => conn.execute(
+                    "DELETE FROM todos WHERE status = 'done' AND completed_at IS NOT NULL AND completed_at < ?1",
+                    params![c],
+                )?,
+                None => conn.execute("DELETE FROM todos", [])?,
+            },
+            "plan_tasks" => conn.execute("DELETE FROM plan_tasks", [])?,
+            "assistant_messages" => conn.execute("DELETE FROM assistant_messages", [])?,
+            "app_usage_sessions" => match &cutoff {
+                Some(c) => {
+                    conn.execute("DELETE FROM app_usage_sessions WHERE started_at < ?1", params![c])?
+                }
+                None => conn.execute("DELETE FROM app_usage_sessions", [])?,
+            },
+            other => return Err(Error::internal(format!("未知数据类别: {other}"))),
+        };
+        Ok(n as u64)
+    }
+
+    /// 列出 work_logs.meta 里引用的本地截图文件路径（清理文件用）。
+    pub fn list_screenshot_paths(&self) -> Result<Vec<String>> {
+        let conn = self.pool.get()?;
+        let mut stmt =
+            conn.prepare("SELECT meta FROM work_logs WHERE meta LIKE '%image_path%'")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        let mut out = Vec::new();
+        for r in rows {
+            let meta_str = r?;
+            if let Ok(v) = serde_json::from_str::<Value>(&meta_str) {
+                if let Some(p) = v.get("image_path").and_then(|x| x.as_str()) {
+                    // 只保留本地绝对路径；NAS 相对路径（日期/开头）跳过
+                    if !p.is_empty()
+                        && (p.starts_with('/') || p.contains('\\') || p.contains('/') || p.starts_with('~'))
+                    {
+                        out.push(p.to_string());
+                    }
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    // -------------------- 本地账号 --------------------
+
+    /// 是否已创建账号。
+    pub fn has_account(&self) -> Result<bool> {
+        let conn = self.pool.get()?;
+        let n: i64 = conn.query_row("SELECT COUNT(*) FROM accounts", [], |r| r.get(0))?;
+        Ok(n > 0)
+    }
+
+    /// 读取账号（用户名, 密码哈希）。
+    pub fn get_account(&self) -> Result<Option<(String, String)>> {
+        let conn = self.pool.get()?;
+        let r = conn
+            .query_row(
+                "SELECT username, password_hash FROM accounts ORDER BY id ASC LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?;
+        Ok(r)
+    }
+
+    /// 创建或更新（重置）账号密码。
+    pub fn upsert_account(&self, username: &str, password_hash: &str) -> Result<()> {
+        let conn = self.pool.get()?;
+        conn.execute(
+            "INSERT INTO accounts (username, password_hash) VALUES (?1, ?2) \
+             ON CONFLICT(username) DO UPDATE SET password_hash = ?2",
+            params![username, password_hash],
+        )?;
+        Ok(())
     }
 
     /// 数据库整体统计。
@@ -1380,6 +1500,17 @@ pub struct AppUsageSessionRow {
     pub started_at: DateTime<Local>,
     pub ended_at: DateTime<Local>,
     pub duration_sec: i64,
+}
+
+/// 各数据类别行数统计（数据管理页用）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DataCounts {
+    pub work_logs: i64,
+    pub reports: i64,
+    pub todos: i64,
+    pub plan_tasks: i64,
+    pub assistant_messages: i64,
+    pub app_usage_sessions: i64,
 }
 
 /// AI 助手对话历史行。

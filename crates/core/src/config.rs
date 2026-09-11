@@ -478,6 +478,14 @@ impl NasConfig {
     }
 }
 
+/// 本地账号配置（密码哈希存数据库，这里只存开关）。
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AccountConfig {
+    /// 启用登录（启动应用需输入密码解锁）
+    #[serde(default)]
+    pub enabled: bool,
+}
+
 /// 定时推送机器人配置：到点自动生成日报/周报并推送到 IM 渠道。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PushChannel {
@@ -702,6 +710,9 @@ pub struct Config {
     /// 定时推送机器人。
     #[serde(default)]
     pub push: PushConfig,
+    /// 本地账号（登录开关）。
+    #[serde(default)]
+    pub account: AccountConfig,
     /// Git 提交收集。
     #[serde(default)]
     pub git: GitConfig,

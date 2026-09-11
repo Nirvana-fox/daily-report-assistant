@@ -14,6 +14,9 @@ import type {
   MonitorInfo,
   AssistantMessageRow,
   PushStats,
+  DataStats,
+  PurgeCategoryResult,
+  AccountStatus,
   NasSyncStats,
   PlanTask,
   PurgeStats,
@@ -68,6 +71,9 @@ const DEFAULT_CONFIG: Config = {
     weekly_enabled: false,
     weekly_day: 5,
     channels: [],
+  },
+  account: {
+    enabled: false,
   },
   app: {
     auto_launch_on_boot: false,
@@ -379,6 +385,52 @@ export const pushRunNow = (force: boolean) =>
     weekly_report_id: 0,
     deliveries: [],
   });
+
+// ===== 数据管理 / 加密备份 / 本地账号 =====
+export const dataStats = () =>
+  safeInvoke<DataStats>('data_stats', undefined, {
+    work_logs: 0, reports: 0, todos: 0, plan_tasks: 0,
+    assistant_messages: 0, app_usage_sessions: 0,
+    screenshots: { file_count: 0, total_bytes: 0 },
+    db_bytes: 0,
+  });
+
+export const purgeCategory = (
+  category: string,
+  keepDays: number | null,
+  deleteFiles: boolean
+) =>
+  safeInvoke<PurgeCategoryResult>('purge_category', { category, keepDays, deleteFiles }, {
+    deleted_rows: 0,
+    deleted_files: 0,
+  });
+
+export const exportData = (path: string, password: string) =>
+  safeInvoke<number>('export_data', { path, password }, 0);
+
+export const importData = (path: string, password: string) =>
+  safeInvoke<string>('import_data', { path, password }, '');
+
+export const restartApp = () => safeInvoke<void>('restart_app');
+
+export const accountStatus = () =>
+  safeInvoke<AccountStatus>('account_status', undefined, {
+    enabled: false,
+    has_account: false,
+    username: null,
+  });
+
+export const accountSetup = (username: string, password: string) =>
+  safeInvoke<void>('account_setup', { username, password });
+
+export const accountLogin = (password: string) =>
+  safeInvoke<boolean>('account_login', { password }, false);
+
+export const accountChangePassword = (oldPassword: string, newPassword: string) =>
+  safeInvoke<void>('account_change_password', { oldPassword, newPassword });
+
+export const accountSetEnabled = (enabled: boolean, password: string) =>
+  safeInvoke<void>('account_set_enabled', { enabled, password });
 
 // ===== NAS 数据同步 =====
 export const nasTestConnection = () =>

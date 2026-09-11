@@ -5,10 +5,13 @@ edition = "2021"
 license = "MIT"
 default-run = "report-assistant"
 
+rusqlite = { version = "0.32", features = ["bundled"] }
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+rusqlite = { version = "0.32", features = ["bundled"] }
 tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-single-instance = "2"
 tauri-plugin-autostart = "2"

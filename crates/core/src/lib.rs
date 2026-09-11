@@ -20,6 +20,7 @@
 //! 所有耗时 / IO 操作均为 ``async``，调用方负责放在合适的 runtime 上。
 //! 业务错误统一走 [`Error`] / [`Result`]。
 
+pub mod backup;
 pub mod config;
 pub mod error;
 pub mod exporters;

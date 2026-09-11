@@ -1459,6 +1459,339 @@ pub async fn push_run_now(
 }
 
 // ---------------------------------------------------------------------------
+// 数据管理（分类清理 / 统计）
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize)]
+pub struct ScreenshotDirStats {
+    pub file_count: i64,
+    pub total_bytes: i64,
+}
+
+#[derive(serde::Serialize)]
+pub struct DataStats {
+    #[serde(flatten)]
+    pub counts: report_assistant_core::storage::DataCounts,
+    pub screenshots: ScreenshotDirStats,
+    pub db_bytes: i64,
+}
+
+/// 各数据类别统计（含截图文件数/大小、数据库大小）。
+#[tauri::command]
+pub async fn data_stats(state: State<'_, AppStateHandle>) -> Result<DataStats, String> {
+    let cfg = state.config.lock().clone();
+    let storage = state.storage.clone();
+    tokio::task::spawn_blocking(move || {
+        let counts = storage.data_counts().map_err(|e| e.to_string())?;
+        let mut screenshots = ScreenshotDirStats { file_count: 0, total_bytes: 0 };
+        if let Ok(dir) = cfg.resolved_screenshot_dir() {
+            if let Ok(entries) = std::fs::read_dir(&dir) {
+                for e in entries.flatten() {
+                    if let Ok(meta) = e.metadata() {
+                        if meta.is_file() {
+                            screenshots.file_count += 1;
+                            screenshots.total_bytes += meta.len() as i64;
+                        }
+                    }
+                }
+            }
+        }
+        let db_path = cfg.resolved_db_path().unwrap_or_default();
+        let db_bytes = std::fs::metadata(&db_path)
+            .map(|m| m.len() as i64)
+            .unwrap_or(0);
+        Ok(DataStats { counts, screenshots, db_bytes })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(serde::Serialize)]
+pub struct PurgeCategoryResult {
+    pub deleted_rows: u64,
+    pub deleted_files: u64,
+}
+
+/// 按类别清理数据。`keep_days = null` 全删；`delete_files = true` 时
+/// 同时删除 work_logs 引用的本地截图文件（仅 work_logs 类别生效）。
+#[tauri::command(rename_all = "camelCase")]
+pub async fn purge_category(
+    state: State<'_, AppStateHandle>,
+    category: String,
+    keep_days: Option<i64>,
+    delete_files: bool,
+) -> Result<PurgeCategoryResult, String> {
+    let cfg = state.config.lock().clone();
+    let storage = state.storage.clone();
+    let category_clone = category.clone();
+    let (deleted_rows, image_paths) = tokio::task::spawn_blocking(move || {
+        let paths = if category_clone == "work_logs" && delete_files {
+            storage.list_screenshot_paths().unwrap_or_default()
+        } else {
+            Vec::new()
+        };
+        let n = storage
+            .purge_category(&category_clone, keep_days)
+            .map_err(|e| e.to_string())?;
+        Ok::<_, String>((n, paths))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    // 删除引用的截图文件（存在才删）
+    let mut deleted_files = 0u64;
+    if delete_files && category == "work_logs" {
+        for p in &image_paths {
+            let expanded = paths::expand_tilde(p);
+            if std::fs::remove_file(&expanded).is_ok() {
+                deleted_files += 1;
+            }
+        }
+    }
+    // screenshots 类别：直接清空截图目录
+    if category == "screenshots" {
+        if let Ok(dir) = cfg.resolved_screenshot_dir() {
+            if let Ok(entries) = std::fs::read_dir(&dir) {
+                for e in entries.flatten() {
+                    if e.path().is_file() && std::fs::remove_file(e.path()).is_ok() {
+                        deleted_files += 1;
+                    }
+                }
+            }
+        }
+    }
+    Ok(PurgeCategoryResult { deleted_rows, deleted_files })
+}
+
+// ---------------------------------------------------------------------------
+// 加密备份（导出 / 导入）
+// ---------------------------------------------------------------------------
+
+/// 加密导出整个数据库到指定文件（含工作记录/报告/待办/规划/AI对话/应用时长/
+/// 账号与配置游标；截图文件不打包，仅保留路径）。
+#[tauri::command]
+pub async fn export_data(
+    state: State<'_, AppStateHandle>,
+    path: String,
+    password: String,
+) -> Result<u64, String> {
+    use report_assistant_core::backup;
+    let cfg = state.config.lock().clone();
+    let db_path = cfg.resolved_db_path().map_err(|e| e.to_string())?;
+    if password.trim().is_empty() {
+        return Err("导出密码不能为空".to_string());
+    }
+    let out_path = paths::expand_tilde(&path);
+
+    // WAL 合流后读取数据库文件
+    let bytes = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, String> {
+        {
+            let conn = rusqlite::Connection::open(&db_path).map_err(|e| e.to_string())?;
+            conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);")
+                .map_err(|e| e.to_string())?;
+        }
+        std::fs::read(&db_path).map_err(|e| format!("读取数据库失败: {e}"))
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    if !bytes.starts_with(b"SQLite format 3\x00") && !bytes.starts_with(b"SQLite format 3") {
+        return Err("数据库文件异常，取消导出".to_string());
+    }
+    let encrypted = report_assistant_core::backup::encrypt_bytes(&bytes, password.trim())
+        .map_err(|e| e.to_string())?;
+    let n = encrypted.len() as u64;
+    tokio::fs::write(&out_path, encrypted)
+        .await
+        .map_err(|e| format!("写入备份文件失败: {e}"))?;
+    tracing::info!("加密备份完成: {} ({} 字节)", out_path.display(), n);
+    Ok(n)
+}
+
+/// 解密导入备份：先写到待恢复文件，应用重启时自动替换数据库。
+/// 返回提示信息（前端提示用户重启）。
+#[tauri::command]
+pub async fn import_data(
+    state: State<'_, AppStateHandle>,
+    path: String,
+    password: String,
+) -> Result<String, String> {
+    use report_assistant_core::backup;
+    let cfg = state.config.lock().clone();
+    let db_path = cfg.resolved_db_path().map_err(|e| e.to_string())?;
+    let src = paths::expand_tilde(&path);
+
+    let plain = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, String> {
+        let file = std::fs::read(&src).map_err(|e| format!("读取备份失败: {e}"))?;
+        if !backup::looks_like_backup(&file) {
+            return Err("不是本应用的加密备份文件".to_string());
+        }
+        backup::decrypt_bytes(&file, password.trim()).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+
+    if !plain.starts_with(b"SQLite format 3") {
+        return Err("备份内容不是有效的数据库".to_string());
+    }
+    let pending = db_path.with_extension("sqlite.pending-import");
+    tokio::fs::write(&pending, &plain)
+        .await
+        .map_err(|e| format!("写入待恢复数据失败: {e}"))?;
+    Ok("备份校验通过，重启应用后自动完成恢复".to_string())
+}
+
+/// 应用重启（导入恢复后调用）。
+#[tauri::command]
+pub async fn restart_app(app: AppHandle) -> Result<(), String> {
+    app.restart();
+    #[allow(unreachable_code)]
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// 本地账号（登录管理）
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Serialize)]
+pub struct AccountStatus {
+    /// 登录开关是否打开
+    pub enabled: bool,
+    /// 是否已创建账号
+    pub has_account: bool,
+    pub username: Option<String>,
+}
+
+#[tauri::command]
+pub async fn account_status(state: State<'_, AppStateHandle>) -> Result<AccountStatus, String> {
+    let cfg = state.config.lock().clone();
+    let storage = state.storage.clone();
+    let (has_account, username) = tokio::task::spawn_blocking(move || {
+        let r = storage.get_account().ok().flatten();
+        (r.is_some(), r.map(|(u, _)| u))
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(AccountStatus { enabled: cfg.account.enabled, has_account, username })
+}
+
+/// 首次创建账号并启用登录。
+#[tauri::command]
+pub async fn account_setup(
+    app: AppHandle,
+    state: State<'_, AppStateHandle>,
+    username: String,
+    password: String,
+) -> Result<(), String> {
+    use report_assistant_core::backup;
+    let username = username.trim().to_string();
+    if username.is_empty() {
+        return Err("用户名不能为空".to_string());
+    }
+    if password.len() < 4 {
+        return Err("密码至少 4 位".to_string());
+    }
+    let storage = state.storage.clone();
+    let hash = backup::hash_password(&password).map_err(|e| e.to_string())?;
+    let username_log = username.clone();
+    tokio::task::spawn_blocking(move || storage.upsert_account(&username, &hash))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
+    {
+        let mut cfg = state.config.lock();
+        cfg.account.enabled = true;
+        config::save(&cfg).map_err(|e| e.to_string())?;
+    }
+    let _ = app.emit("account-changed", ());
+    tracing::info!("本地账号已创建并启用登录: {username_log}");
+    Ok(())
+}
+
+/// 登录验证（启动解锁用）。
+#[tauri::command]
+pub async fn account_login(
+    state: State<'_, AppStateHandle>,
+    password: String,
+) -> Result<bool, String> {
+    let storage = state.storage.clone();
+    tokio::task::spawn_blocking(move || {
+        let account = storage.get_account().map_err(|e| e.to_string())?;
+        let Some((_, hash)) = account else {
+            return Err("尚未创建账号".to_string());
+        };
+        Ok(report_assistant_core::backup::verify_password(&password, &hash))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// 修改密码（需验证旧密码）。
+#[tauri::command]
+pub async fn account_change_password(
+    state: State<'_, AppStateHandle>,
+    old_password: String,
+    new_password: String,
+) -> Result<(), String> {
+    use report_assistant_core::backup;
+    if new_password.len() < 4 {
+        return Err("新密码至少 4 位".to_string());
+    }
+    let storage = state.storage.clone();
+    let old = old_password;
+    let new_pass = new_password;
+    tokio::task::spawn_blocking(move || {
+        let account = storage.get_account().map_err(|e| e.to_string())?;
+        let Some((username, hash)) = account else {
+            return Err("尚未创建账号".to_string());
+        };
+        if !backup::verify_password(&old, &hash) {
+            return Err("旧密码不正确".to_string());
+        }
+        let new_hash =
+            backup::hash_password(&new_pass).map_err(|e| e.to_string())?;
+        storage
+            .upsert_account(&username, &new_hash)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+    .map_err(|e| e.to_string())?;
+    tracing::info!("账号密码已修改");
+    Ok(())
+}
+
+/// 开/关登录开关（需验证密码）。
+#[tauri::command(rename_all = "camelCase")]
+pub async fn account_set_enabled(
+    state: State<'_, AppStateHandle>,
+    enabled: bool,
+    password: String,
+) -> Result<(), String> {
+    let storage = state.storage.clone();
+    let pass = password;
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
+        let account = storage.get_account().map_err(|e| e.to_string())?;
+        let Some((_, hash)) = account else {
+            return Err("尚未创建账号".to_string());
+        };
+        if !report_assistant_core::backup::verify_password(&pass, &hash) {
+            return Err("密码不正确".to_string());
+        }
+        Ok(())
+    })
+    .await
+    .map_err(|e| e.to_string())??;
+    {
+        let mut cfg = state.config.lock();
+        cfg.account.enabled = enabled;
+        config::save(&cfg).map_err(|e| e.to_string())?;
+    }
+    tracing::info!("登录开关已设为 {enabled}");
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
 // 本地模型模式（功能热键切换）
 // ---------------------------------------------------------------------------
 
