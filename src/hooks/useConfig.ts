@@ -37,6 +37,14 @@ const DEFAULT_CONFIG: Config = {
     collaborators: '',
     extra: '',
   },
+  push: {
+    enabled: false,
+    daily_time: '18:30',
+    daily_days: [1, 2, 3, 4, 5],
+    weekly_enabled: false,
+    weekly_day: 5,
+    channels: [],
+  },
   app: {
     auto_launch_on_boot: false,
     silent_launch: false,

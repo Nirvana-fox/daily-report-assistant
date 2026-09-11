@@ -12,6 +12,8 @@ import type {
   LlmMode,
   LlmProvider,
   MonitorInfo,
+  AssistantMessageRow,
+  PushStats,
   NasSyncStats,
   PlanTask,
   PurgeStats,
@@ -58,6 +60,14 @@ const DEFAULT_CONFIG: Config = {
     responsibilities: '',
     collaborators: '',
     extra: '',
+  },
+  push: {
+    enabled: false,
+    daily_time: '18:30',
+    daily_days: [1, 2, 3, 4, 5],
+    weekly_enabled: false,
+    weekly_day: 5,
+    channels: [],
   },
   app: {
     auto_launch_on_boot: false,
@@ -336,6 +346,39 @@ export const getHeatMap = (startDate?: string, endDate?: string) => {
 // ===== 图片预览 =====
 export const readImageBase64 = (path: string) =>
   safeInvoke<string>('read_image_base64', { path }, '');
+
+// ===== AI 助手 =====
+export const assistantLoadHistory = (limit = 60) =>
+  safeInvoke<AssistantMessageRow[]>('assistant_load_history', { limit }, []);
+
+export const assistantClearHistory = () =>
+  safeInvoke<number>('assistant_clear_history', undefined, 0);
+
+export const assistantChat = (userMessage: string, providerId?: string) => {
+  const args: Record<string, unknown> = { userMessage };
+  if (providerId) args.providerId = providerId;
+  return safeInvoke<string>('assistant_chat', args, '');
+};
+
+export const saveAssistantReport = (
+  content: string,
+  kind: 'daily' | 'weekly',
+  anchor?: string
+) => {
+  const args: Record<string, unknown> = { content, kind };
+  if (anchor) args.anchor = anchor;
+  return safeInvoke<number>('save_assistant_report', args, 0);
+};
+
+// ===== 推送机器人 =====
+export const pushRunNow = (force: boolean) =>
+  safeInvoke<PushStats>('push_run_now', { force }, {
+    generated_daily: false,
+    generated_weekly: false,
+    report_id: 0,
+    weekly_report_id: 0,
+    deliveries: [],
+  });
 
 // ===== NAS 数据同步 =====
 export const nasTestConnection = () =>

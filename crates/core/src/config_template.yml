@@ -82,6 +82,20 @@ git:
   author_names: []
   poll_interval_seconds: 600
 
+# 定时推送机器人：到点自动生成日报/周报并推送
+push:
+  enabled: false
+  daily_time: "18:30"      # 推送时间（24h）
+  daily_days: [1, 2, 3, 4, 5]  # 日报推送日（1=周一..7=周日）
+  weekly_enabled: false    # 是否附带周报
+  weekly_day: 5            # 周报推送日（默认周五）
+  channels: []             # 渠道在设置页图形化配置
+  # channels 示例：
+  #   - channel_type: feishu
+  #     webhook_url: https://open.feishu.cn/open-apis/bot/v2/hook/xxx
+  #     secret: ""            # 飞书签名密钥（可选）
+  #     enabled: true
+
 # 全局功能热键
 shortcuts:
   # 一键切换 截图分析用 云端/本地 大模型；留空禁用

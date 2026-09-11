@@ -8,6 +8,7 @@
 //! - [`git`] Git 提交收集（libgit2，按作者过滤）
 //! - [`nas`] NAS 数据同步客户端（记录 + 图片增量推送）
 //! - [`privacy`] 本地敏感信息脱敏兜底（入库前正则过滤）
+//! - [`push`] 定时推送机器人（自动生成日报并推送飞书/钉钉/企微/Telegram）
 //! - [`llm`] OpenAI 兼容协议客户端
 //! - [`generator`] 报告生成（聚合数据 + 调 LLM）
 //! - [`templates`] 报告模板
@@ -30,6 +31,7 @@ pub mod logging;
 pub mod nas;
 pub mod paths;
 pub mod privacy;
+pub mod push;
 pub mod screenshot;
 pub mod storage;
 pub mod templates;

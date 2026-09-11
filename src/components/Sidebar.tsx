@@ -20,7 +20,7 @@ const items = [
   { to: '/home', label: '首页', icon: HomeIcon },
   { to: '/today', label: '今日工作', icon: Calendar },
   { to: '/plan', label: '规划', icon: CalendarDays },
-  { to: '/plan-master', label: '智能规划大师', icon: Brain },
+  { to: '/plan-master', label: 'AI 助手', icon: Brain },
   { to: '/history-reports', label: '历史报告', icon: Archive },
   { to: '/heatmap', label: '时段热力图', icon: Activity },
   { to: '/appusage', label: '应用使用', icon: BarChart3 },

@@ -214,6 +214,14 @@ CREATE TABLE IF NOT EXISTS sync_state (
     value TEXT NOT NULL,
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS assistant_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_assistant_messages_id ON assistant_messages(id);
 "#;
 
 // ---------------------------------------------------------------------------
@@ -1282,6 +1290,46 @@ impl Storage {
         Ok(())
     }
 
+    // -------------------- assistant_messages（AI 助手对话历史） --------------------
+
+    /// 写入一条 AI 助手对话消息。
+    pub fn add_assistant_message(&self, role: &str, content: &str) -> Result<i64> {
+        let conn = self.pool.get()?;
+        conn.execute(
+            "INSERT INTO assistant_messages (role, content) VALUES (?1, ?2)",
+            params![role, content],
+        )?;
+        Ok(conn.last_insert_rowid())
+    }
+
+    /// 读取最近 `limit` 条对话消息（按时间正序返回，便于直接拼上下文）。
+    pub fn list_assistant_messages(&self, limit: i64) -> Result<Vec<AssistantMessageRow>> {
+        let conn = self.pool.get()?;
+        let mut stmt = conn.prepare(
+            "SELECT id, role, content, created_at FROM              (SELECT id, role, content, created_at FROM assistant_messages ORDER BY id DESC LIMIT ?1)              ORDER BY id ASC",
+        )?;
+        let rows = stmt.query_map(params![limit.max(1)], |row| {
+            Ok(AssistantMessageRow {
+                id: row.get(0)?,
+                role: row.get(1)?,
+                content: row.get(2)?,
+                created_at: row.get(3)?,
+            })
+        })?;
+        let mut out = Vec::new();
+        for r in rows {
+            out.push(r?);
+        }
+        Ok(out)
+    }
+
+    /// 清空 AI 助手对话历史，返回删除条数。
+    pub fn clear_assistant_messages(&self) -> Result<u64> {
+        let conn = self.pool.get()?;
+        let n = conn.execute("DELETE FROM assistant_messages", [])?;
+        Ok(n as u64)
+    }
+
     /// 当前最大 work_log id（无记录返回 0）。
     pub fn max_work_log_id(&self) -> Result<i64> {
         let conn = self.pool.get()?;
@@ -1332,6 +1380,16 @@ pub struct AppUsageSessionRow {
     pub started_at: DateTime<Local>,
     pub ended_at: DateTime<Local>,
     pub duration_sec: i64,
+}
+
+/// AI 助手对话历史行。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AssistantMessageRow {
+    pub id: i64,
+    /// `user` / `assistant`
+    pub role: String,
+    pub content: String,
+    pub created_at: String,
 }
 
 /// 单日热力图数据（供前端时段热力图页使用）。

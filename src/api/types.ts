@@ -115,6 +115,7 @@ export interface Config {
   git: GitConfig;
   shortcuts: ShortcutConfig;
   profile: ProfileConfig;
+  push: PushConfig;
   db_path: string;
 }
 
@@ -235,6 +236,37 @@ export interface LlmMode {
   local_configured: boolean;
   active_vision_label: string;
   hotkey: string;
+}
+
+export interface PushChannel {
+  channel_type: string; // feishu | dingtalk | wecom | telegram
+  webhook_url: string;
+  secret: string;
+  enabled: boolean;
+}
+
+export interface PushConfig {
+  enabled: boolean;
+  daily_time: string;
+  daily_days: number[];
+  weekly_enabled: boolean;
+  weekly_day: number;
+  channels: PushChannel[];
+}
+
+export interface PushStats {
+  generated_daily: boolean;
+  generated_weekly: boolean;
+  report_id: number;
+  weekly_report_id: number;
+  deliveries: [string, boolean, string][];
+}
+
+export interface AssistantMessageRow {
+  id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  created_at: string;
 }
 
 export interface NasSyncStats {

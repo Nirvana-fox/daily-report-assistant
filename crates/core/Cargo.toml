@@ -27,6 +27,8 @@ base64.workspace = true
 dirs.workspace = true
 uuid.workspace = true
 regex = "1"
+hmac = "0.12"
+sha2 = "0.10"
 git2.workspace = true
 
 # 截图（跨平台）

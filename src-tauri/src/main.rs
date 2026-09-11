@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 use report_assistant_core::{config, logging, storage::Storage};
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use crate::state::AppState;
 
@@ -141,6 +141,11 @@ fn main() {
             commands::get_llm_mode,
             commands::toggle_local_llm,
             commands::read_image_base64,
+            commands::assistant_chat,
+            commands::assistant_load_history,
+            commands::assistant_clear_history,
+            commands::save_assistant_report,
+            commands::push_run_now,
         ])
         .setup(|app| {
             tray::setup(app.handle())?;
@@ -151,6 +156,67 @@ fn main() {
                 let todo_cfg = state.config.lock().todo.clone();
                 let shortcut_cfg = state.config.lock().shortcuts.clone();
                 popup::register_hotkeys(app.handle(), &todo_cfg, Some(&shortcut_cfg));
+            }
+
+            // 推送机器人调度线程：每 30s 检查一次是否到达推送时间。
+            // 到点 → 生成日报（+周报日附周报）→ 推送各启用渠道；每天最多一次。
+            {
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    // 等待应用完全启动
+                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                    loop {
+                        let state: tauri::State<'_, crate::state::AppStateHandle> =
+                            app_handle.state();
+                        let cfg = state.config.lock().clone();
+                        let push = &cfg.push;
+
+                        let weekday = report_assistant_core::push::today_weekday();
+                        let should_run = push.enabled
+                            && (push.should_push_daily_today(weekday)
+                                || push.should_push_weekly_today(weekday))
+                            && report_assistant_core::push::is_push_time_now(&cfg);
+
+                        if should_run {
+                            tracing::info!("推送时间到，开始生成并推送");
+                            let state2: tauri::State<'_, crate::state::AppStateHandle> =
+                                app_handle.state();
+                            let watch_handle = { state2.watch.lock().clone() };
+                            let resume_handle = { state2.watch.lock().clone() };
+                            let pause = move || {
+                                if let Some(h) = watch_handle.as_ref() {
+                                    if h.is_running() {
+                                        h.pause();
+                                    }
+                                }
+                            };
+                            let resume = move || {
+                                if let Some(h) = resume_handle.as_ref() {
+                                    if h.is_running() {
+                                        h.resume();
+                                    }
+                                }
+                            };
+                            let storage = state2.storage.clone();
+                            let result = report_assistant_core::push::run_push(
+                                &cfg, &storage, pause, resume, false,
+                            )
+                            .await;
+                            match result {
+                                Ok(st) if st.generated_daily => {
+                                    let ok = st.deliveries.iter().filter(|d| d.1).count();
+                                    let fail = st.deliveries.len() - ok;
+                                    tracing::info!("推送完成：成功 {ok} 渠道，失败 {fail}");
+                                    let _ = app_handle.emit("push-done", &st);
+                                }
+                                Ok(_) => {}
+                                Err(e) => tracing::warn!("推送失败: {e}"),
+                            }
+                        }
+
+                        tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+                    }
+                });
             }
 
             // 启动 Git 提交收集轮询（未启用配置时空转）

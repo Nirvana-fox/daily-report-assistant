@@ -3,7 +3,7 @@
   <h1>日报助手 · Daily Report Assistant</h1>
   <p><strong>AI 驱动的工作日报 / 周报 / 月报生成工具</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/version-1.5.1-blue" />
+    <img src="https://img.shields.io/badge/version-1.6.0-blue" />
     <img src="https://img.shields.io/badge/Rust-1.94+-CE422B?logo=rust&logoColor=white" />
     <img src="https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white" />
     <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" />
@@ -32,6 +32,8 @@
 - 🗂️ **12 类工作分类**：开发/会议/沟通/文档/测试/设计/运维/数据分析/学习/管理/产品/生活
 - 📝 **报告生成**：日报 / 周报 / 月报，4 种内置模板 + 自定义模板
 - 📤 **导出格式**：Markdown / HTML / TXT / Word (docx)
+- 🤖 **AI 助手（Bot）**：应用内对话机器人，基于你的工作记录回答问题、生成日报/周报草稿（一键存入报告库），对话历史持久化
+- 📨 **推送机器人**：到点自动生成日报/周报，推送到飞书 / 钉钉 / 企业微信 / Telegram
 - 🎛️ **本地模型一键切换**：`Ctrl+Alt+L` 随时把截图分析在云端/本地大模型间切换（Ollama / LM Studio / vLLM 等 OpenAI 兼容端点）
 - 🌐 **NAS 数据联动**：工作记录 + 截图原图增量推送到 NAS；截图在 NAS 上按日期/设备单独存放；断网自动补推、幂等去重
 - 🖼️ **截图回看**：时间线里一键查看当时的屏幕

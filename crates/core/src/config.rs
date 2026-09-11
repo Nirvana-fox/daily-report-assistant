@@ -478,6 +478,102 @@ impl NasConfig {
     }
 }
 
+/// 定时推送机器人配置：到点自动生成日报/周报并推送到 IM 渠道。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PushChannel {
+    /// 渠道类型：`feishu` / `dingtalk` / `wecom` / `telegram`
+    #[serde(default)]
+    pub channel_type: String,
+    /// Webhook 地址（feishu/dingtalk/wecom）或 Telegram Bot API 地址
+    #[serde(default)]
+    pub webhook_url: String,
+    /// 附加密钥：钉钉加签 secret / 企业微信可不填
+    #[serde(default)]
+    pub secret: String,
+    /// 启用
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+}
+
+/// 推送计划。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PushConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    /// 每天推送时间 `HH:MM`（24h），如 `18:30`
+    #[serde(default = "default_push_time")]
+    pub daily_time: String,
+    /// 日报：每周哪几天推（1=周一..7=周日）；默认周一到周五
+    #[serde(default = "default_push_days")]
+    pub daily_days: Vec<u32>,
+    /// 是否推送周报（在每周最后一天推日报时附带周报）
+    #[serde(default)]
+    pub weekly_enabled: bool,
+    /// 周报推送日（1=周一..7=周日），默认 5（周五）
+    #[serde(default = "default_weekly_day")]
+    pub weekly_day: u32,
+    /// 推送渠道列表
+    #[serde(default)]
+    pub channels: Vec<PushChannel>,
+}
+
+fn default_push_time() -> String {
+    "18:30".to_string()
+}
+fn default_push_days() -> Vec<u32> {
+    vec![1, 2, 3, 4, 5]
+}
+fn default_weekly_day() -> u32 {
+    5
+}
+
+impl Default for PushConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            daily_time: default_push_time(),
+            daily_days: default_push_days(),
+            weekly_enabled: false,
+            weekly_day: default_weekly_day(),
+            channels: Vec::new(),
+        }
+    }
+}
+
+impl PushConfig {
+    /// 解析 `HH:MM` 为 (时, 分)；非法返回 None。
+    pub fn parse_push_time(&self) -> Option<(u32, u32)> {
+        let parts: Vec<&str> = self.daily_time.split(':').collect();
+        if parts.len() != 2 {
+            return None;
+        }
+        let h: u32 = parts[0].trim().parse().ok()?;
+        let m: u32 = parts[1].trim().parse().ok()?;
+        if h > 23 || m > 59 {
+            return None;
+        }
+        Some((h, m))
+    }
+
+    /// 今天是否该推日报。
+    pub fn should_push_daily_today(&self, weekday: u32) -> bool {
+        self.enabled && self.daily_days.contains(&weekday)
+    }
+
+    /// 今天是否该推周报。
+    pub fn should_push_weekly_today(&self, weekday: u32) -> bool {
+        self.enabled && self.weekly_enabled && self.weekly_day == weekday
+    }
+
+    /// 启用中的渠道。
+    pub fn enabled_channels(&self) -> Vec<&PushChannel> {
+        self.channels
+            .iter()
+            .filter(|c| c.enabled && !c.webhook_url.trim().is_empty())
+            .collect()
+    }
+}
+
 /// Git 提交收集配置：定期扫描本地仓库，把"我的"提交写入时间线。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GitConfig {
@@ -603,6 +699,9 @@ pub struct Config {
     /// NAS 数据同步。
     #[serde(default)]
     pub nas: NasConfig,
+    /// 定时推送机器人。
+    #[serde(default)]
+    pub push: PushConfig,
     /// Git 提交收集。
     #[serde(default)]
     pub git: GitConfig,
