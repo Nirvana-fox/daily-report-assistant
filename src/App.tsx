@@ -6,16 +6,13 @@ import Sidebar from './components/Sidebar';
 import { accountLogin, accountStatus } from './api/ipc';
 import Home from './pages/Home';
 import Timeline from './pages/Timeline';
-import Reports from './pages/Reports';
+import ReportsHub from './pages/ReportsHub';
+import Stats from './pages/Stats';
 import Settings from './pages/Settings';
 import Manual from './pages/Manual';
 import Todos from './pages/Todos';
-import TodayOverview from './pages/TodayOverview';
-import HeatMap from './pages/HeatMap';
-import AppUsage from './pages/AppUsage';
 import Plan from './pages/Plan';
 import PlanMaster from './pages/PlanMaster';
-import HistoryReports from './pages/HistoryReports';
 import { ToastProvider } from './hooks/useToast';
 
 export default function App() {
@@ -112,17 +109,19 @@ function RoutesWithFade() {
       <Routes location={loc}>
         <Route path="/" element={<Navigate to="/home" replace />} />
         <Route path="/home" element={<Home />} />
-        <Route path="/today" element={<TodayOverview />} />
         <Route path="/plan" element={<Plan />} />
         <Route path="/plan-master" element={<PlanMaster />} />
-        <Route path="/history-reports" element={<HistoryReports />} />
-        <Route path="/heatmap" element={<HeatMap />} />
-        <Route path="/appusage" element={<AppUsage />} />
+        <Route path="/reports" element={<ReportsHub />} />
+        <Route path="/stats" element={<Stats />} />
         <Route path="/todos" element={<Todos />} />
         <Route path="/timeline" element={<Timeline />} />
-        <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/manual" element={<Manual />} />
+        {/* 旧入口重定向（统计 = 热力图+应用使用；报告 = 生成+历史；今日工作 → 时间线） */}
+        <Route path="/heatmap" element={<Navigate to="/stats" replace />} />
+        <Route path="/appusage" element={<Navigate to="/stats" replace />} />
+        <Route path="/history-reports" element={<Navigate to="/reports" replace />} />
+        <Route path="/today" element={<Navigate to="/timeline" replace />} />
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </div>
