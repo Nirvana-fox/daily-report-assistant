@@ -319,6 +319,11 @@ export default function Timeline() {
                             <span className="text-sm font-medium text-ink truncate">
                               {l.title || '(无标题)'}
                             </span>
+                            {l.meta?.project && (
+                              <span className="text-[11px] px-1.5 py-0.5 rounded-pix bg-primary-50 text-primary-700 border border-primary-100">
+                                {l.meta.project}
+                              </span>
+                            )}
                             {l.category && (
                               <span className="text-[11px] px-1.5 py-0.5 rounded-pix bg-bg text-ink2 border border-border">
                                 {l.category}

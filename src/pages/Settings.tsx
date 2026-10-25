@@ -1,4 +1,5 @@
 import { useEffect, useState, type KeyboardEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Save,
   CheckCircle2,
@@ -68,25 +69,22 @@ import type {
 import { useToast } from '../hooks/useToast';
 import dayjs from 'dayjs';
 
-type TabKey = 'llm' | 'ai' | 'push' | 'screenshot' | 'nas' | 'report' | 'app' | 'data' | 'account' | 'about';
+type TabKey = 'model' | 'capture' | 'personal' | 'report' | 'data' | 'general';
 
 const SETTING_TABS = [
-  { key: 'llm' as const, label: 'LLM', icon: <Cpu size={14} /> },
-  { key: 'ai' as const, label: 'AI 资料', icon: <UserCog size={14} /> },
-  { key: 'push' as const, label: '推送', icon: <Bell size={14} /> },
-  { key: 'screenshot' as const, label: '截图', icon: <Camera size={14} /> },
-  { key: 'nas' as const, label: 'NAS 同步', icon: <HardDrive size={14} /> },
-  { key: 'report' as const, label: '报告', icon: <FileText size={14} /> },
-  { key: 'app' as const, label: '应用', icon: <SettingsIcon size={14} /> },
-  { key: 'data' as const, label: '数据', icon: <Database size={14} /> },
-  { key: 'account' as const, label: '账号', icon: <Lock size={14} /> },
-  { key: 'about' as const, label: '关于', icon: <Info size={14} /> },
+  { key: 'model' as const, label: '模型', icon: <Cpu size={14} /> },
+  { key: 'capture' as const, label: '采集与隐私', icon: <Camera size={14} /> },
+  { key: 'personal' as const, label: '个性化', icon: <UserCog size={14} /> },
+  { key: 'report' as const, label: '报告与推送', icon: <FileText size={14} /> },
+  { key: 'data' as const, label: '数据与同步', icon: <Database size={14} /> },
+  { key: 'general' as const, label: '通用', icon: <SettingsIcon size={14} /> },
 ];
 
 export default function Settings() {
   const toast = useToast();
+  const navigate = useNavigate();
   const { config, save, saving, loading } = useConfig();
-  const [tab, setTab] = useState<TabKey>('llm');
+  const [tab, setTab] = useState<TabKey>('model');
   const [draft, setDraft] = useState<Config | null>(null);
   const [testing, setTesting] = useState(false);
   const [stats, setStats] = useState<StorageStats | null>(null);
@@ -567,7 +565,7 @@ export default function Settings() {
 
       <div key={tab} className="animate-fadein">
         {/* LLM */}
-        {tab === 'llm' && (
+        {tab === 'model' && (
           <Card
             title="LLM 配置"
             description="管理多个大模型 provider，可分别指定默认文本模型与视觉模型"
@@ -817,6 +815,24 @@ export default function Settings() {
                   </option>
                 ))}
               </Select>
+              <Select
+                label="OCR 识别模型（可选）"
+                value={draft.llm.ocr_provider_id ?? ''}
+                onChange={(e) =>
+                  update('llm', {
+                    ...draft.llm,
+                    ocr_provider_id: e.target.value,
+                  })
+                }
+                hint="两段式分析：截图先经 OCR 提取全部文字，再交给默认文本模型归纳。识别更精确但截图原图会上传到该服务商（如智谱 glm-ocr）；失败自动回退默认视觉模型"
+              >
+                <option value="">— 不启用 —</option>
+                {draft.llm.providers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name?.trim() ? p.name : `${p.provider} · ${p.model}`}
+                  </option>
+                ))}
+              </Select>
               <label className="flex items-center gap-2 text-sm self-end pb-2 text-ink">
                 <input
                   type="checkbox"
@@ -860,7 +876,7 @@ export default function Settings() {
         )}
 
         {/* AI 资料 */}
-        {tab === 'ai' && (
+        {tab === 'personal' && (
           <>
             <Card
               title="我的资料"
@@ -917,6 +933,7 @@ export default function Settings() {
               })()}
             </Card>
 
+
             <Card
               title="自定义指令"
               description="生成日报或报告时交给模型遵循：输出格式、内容取舍、表达风格、需要排除的记录或其他特殊要求；不填则由 AI 根据模板和工作记录自动组织内容"
@@ -947,7 +964,7 @@ export default function Settings() {
         )}
 
         {/* Screenshot */}
-        {tab === 'screenshot' && (
+        {tab === 'capture' && (
           <Card title="截图" description="周期截图与视觉理解" hoverable={false}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Input
@@ -1055,11 +1072,227 @@ export default function Settings() {
                 画面未变化时跳过分析（内容去重，显著节省 token）
               </label>
             </div>
+
+            <div className="mt-5 pt-4 border-t border-border">
+              <label className="block text-sm font-medium text-ink mb-1">排除清单</label>
+              <p className="text-[11px] text-ink2 mb-2">
+                命中这些关键词的应用不截图、不记录、不计入应用时长（匹配应用名或窗口标题的子串，大小写不敏感）。例如：微信、游戏、steam
+              </p>
+              <input
+                type="text"
+                className="w-full text-sm rounded-pix border border-border bg-bg px-3 py-2 text-ink placeholder:text-ink2/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="多个关键词用顿号或逗号分隔"
+                value={(draft.screenshot.exclude_apps ?? []).join('、')}
+                onChange={(e) =>
+                  update('screenshot', {
+                    ...draft.screenshot,
+                    exclude_apps: e.target.value
+                      .split(/[、,，;；\n]/)
+                      .map((s) => s.trim())
+                      .filter(Boolean),
+                  })
+                }
+              />
+            </div>
+
+            <div className="mt-5 pt-4 border-t border-border">
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-ink">不记录时段</label>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={<Plus size={14} />}
+                  onClick={() =>
+                    update('screenshot', {
+                      ...draft.screenshot,
+                      quiet_periods: [
+                        ...(draft.screenshot.quiet_periods ?? []),
+                        { start: '22:00', end: '08:00' },
+                      ],
+                    })
+                  }
+                >
+                  添加时段
+                </Button>
+              </div>
+              <p className="text-[11px] text-ink2 mb-2">
+                这些时段内自动暂停采集（支持跨天，如 22:00-08:00）；手动「立即截图」不受时段限制。
+              </p>
+              {(draft.screenshot.quiet_periods ?? []).length === 0 ? (
+                <div className="text-sm text-ink2 py-1">未设置，全天记录。</div>
+              ) : (
+                <div className="space-y-2">
+                  {(draft.screenshot.quiet_periods ?? []).map((p, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        type="time"
+                        className="text-sm rounded-pix border border-border bg-bg px-2 py-1.5 text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={p.start}
+                        onChange={(e) => {
+                          const next = [...(draft.screenshot.quiet_periods ?? [])];
+                          next[i] = { ...next[i], start: e.target.value };
+                          update('screenshot', { ...draft.screenshot, quiet_periods: next });
+                        }}
+                      />
+                      <span className="text-ink2 text-sm">至</span>
+                      <input
+                        type="time"
+                        className="text-sm rounded-pix border border-border bg-bg px-2 py-1.5 text-ink focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={p.end}
+                        onChange={(e) => {
+                          const next = [...(draft.screenshot.quiet_periods ?? [])];
+                          next[i] = { ...next[i], end: e.target.value };
+                          update('screenshot', { ...draft.screenshot, quiet_periods: next });
+                        }}
+                      />
+                      <button
+                        className="text-[12px] text-ink2 hover:text-red-600"
+                        onClick={() =>
+                          update('screenshot', {
+                            ...draft.screenshot,
+                            quiet_periods: (draft.screenshot.quiet_periods ?? []).filter(
+                              (_, j) => j !== i
+                            ),
+                          })
+                        }
+                      >
+                        删除
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </Card>
         )}
 
         {/* 推送 */}
-        {tab === 'push' && (
+        {/* 采集与隐私：隐私脱敏 */}
+        {tab === 'capture' && (
+          <>
+            <Card
+              title="隐私脱敏"
+              description="截图与工作记录的隐私保护：规则同时注入 AI 提示词（软约束）与本地入库前替换（硬约束），规则完全保存在本地"
+              hoverable={false}
+            >
+              <label className="flex items-center gap-2 text-sm text-ink mb-3">
+                <input
+                  type="checkbox"
+                  checked={draft.privacy?.enabled ?? true}
+                  onChange={(e) =>
+                    update('privacy', {
+                      ...(draft.privacy ?? { enabled: true, extra_prompt_rules: '', mask_words: [] }),
+                      enabled: e.target.checked,
+                    })
+                  }
+                  className="accent-primary"
+                />
+                启用本地二次脱敏（手机号/邮箱/密钥等正则 + 词表，入库前确定性执行）
+              </label>
+              <div className="mb-3">
+                <label className="block text-sm text-ink2 mb-1">自定义脱敏规则（注入 AI 提示词，最高优先级）</label>
+                <textarea
+                  className="w-full min-h-[80px] text-sm rounded-pix border border-border bg-bg px-3 py-2 text-ink placeholder:text-ink2/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder={'每行一条，例如：\n不要记录与客户「某某公司」相关的沟通细节\n涉及薪酬、绩效的数字一律脱敏'}
+                  value={draft.privacy?.extra_prompt_rules ?? ''}
+                  onChange={(e) =>
+                    update('privacy', {
+                      ...(draft.privacy ?? { enabled: true, extra_prompt_rules: '', mask_words: [] }),
+                      extra_prompt_rules: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-ink2 mb-1">硬脱敏词表（顿号/逗号分隔，入库前替换为＊＊）</label>
+                <input
+                  type="text"
+                  className="w-full text-sm rounded-pix border border-border bg-bg px-3 py-2 text-ink placeholder:text-ink2/60 focus:outline-none focus:ring-1 focus:ring-primary"
+                  placeholder="例如：张三、某某公司、内部代号"
+                  value={(draft.privacy?.mask_words ?? []).join('、')}
+                  onChange={(e) =>
+                    update('privacy', {
+                      ...(draft.privacy ?? { enabled: true, extra_prompt_rules: '', mask_words: [] }),
+                      mask_words: e.target.value
+                        .split(/[、,，;；\n]/)
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                />
+                <p className="text-[11px] text-ink2 mt-1">
+                  词表匹配大小写不敏感；无论 AI 输出什么，这些词都不会出现在工作记录和日报里。
+                </p>
+              </div>
+            </Card>
+          </>
+        )}
+
+        {tab === 'report' && (
+          <Card
+            title="报告偏好"
+            description="用于生成的默认值"
+            hoverable={false}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Select
+                label="默认模板"
+                value={draft.report.default_template}
+                onChange={(e) =>
+                  update('report', {
+                    ...draft.report,
+                    default_template: e.target.value,
+                  })
+                }
+              >
+                {templates.length === 0 ? (
+                  <option value={draft.report.default_template}>
+                    {draft.report.default_template || 'standard'}
+                  </option>
+                ) : (
+                  templates.map((t) => (
+                    <option key={t.key} value={t.key}>
+                      {t.label}（{t.key}）
+                    </option>
+                  ))
+                )}
+              </Select>
+              <Select
+                label="语言"
+                value={draft.report.language}
+                onChange={(e) =>
+                  update('report', {
+                    ...draft.report,
+                    language: e.target.value,
+                  })
+                }
+              >
+                <option value="zh-CN">中文（简体）</option>
+                <option value="zh-TW">中文（繁体）</option>
+                <option value="en-US">English</option>
+                <option value="ja-JP">日本語</option>
+              </Select>
+              <Input
+                label="姓名"
+                value={draft.report.user_name}
+                onChange={(e) =>
+                  update('report', {
+                    ...draft.report,
+                    user_name: e.target.value,
+                  })
+                }
+              />
+              <Input
+                label="团队"
+                value={draft.report.team}
+                onChange={(e) =>
+                  update('report', { ...draft.report, team: e.target.value })
+                }
+              />
+            </div>
+          </Card>
+        )}
+        {tab === 'report' && (
           <>
             <Card
               title="定时推送"
@@ -1294,7 +1527,7 @@ export default function Settings() {
         )}
 
         {/* NAS */}
-        {tab === 'nas' && (
+        {tab === 'data' && (
           <>
             <Card
               title="NAS 数据同步"
@@ -1432,73 +1665,9 @@ export default function Settings() {
         )}
 
         {/* Report */}
-        {tab === 'report' && (
-          <Card
-            title="报告偏好"
-            description="用于生成的默认值"
-            hoverable={false}
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <Select
-                label="默认模板"
-                value={draft.report.default_template}
-                onChange={(e) =>
-                  update('report', {
-                    ...draft.report,
-                    default_template: e.target.value,
-                  })
-                }
-              >
-                {templates.length === 0 ? (
-                  <option value={draft.report.default_template}>
-                    {draft.report.default_template || 'standard'}
-                  </option>
-                ) : (
-                  templates.map((t) => (
-                    <option key={t.key} value={t.key}>
-                      {t.label}（{t.key}）
-                    </option>
-                  ))
-                )}
-              </Select>
-              <Select
-                label="语言"
-                value={draft.report.language}
-                onChange={(e) =>
-                  update('report', {
-                    ...draft.report,
-                    language: e.target.value,
-                  })
-                }
-              >
-                <option value="zh-CN">中文（简体）</option>
-                <option value="zh-TW">中文（繁体）</option>
-                <option value="en-US">English</option>
-                <option value="ja-JP">日本語</option>
-              </Select>
-              <Input
-                label="姓名"
-                value={draft.report.user_name}
-                onChange={(e) =>
-                  update('report', {
-                    ...draft.report,
-                    user_name: e.target.value,
-                  })
-                }
-              />
-              <Input
-                label="团队"
-                value={draft.report.team}
-                onChange={(e) =>
-                  update('report', { ...draft.report, team: e.target.value })
-                }
-              />
-            </div>
-          </Card>
-        )}
-
+        
         {/* App */}
-        {tab === 'app' && (
+        {tab === 'general' && (
           <>
             <Card
               title="应用"
@@ -1900,7 +2069,7 @@ export default function Settings() {
           </>
         )}
 
-        {tab === 'account' && (
+        {tab === 'general' && (
           <>
             <Card
               title="本地账号"
@@ -2018,137 +2187,48 @@ export default function Settings() {
           </>
         )}
 
-        {tab === 'about' && (
+        {tab === 'general' && (
           <>
-            <Card title="版本信息" hoverable={false}>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card title="关于" description="版本、介绍与开发者信息" hoverable={false}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                 <div className="bg-bg/50 rounded-pix p-3 border border-border">
                   <div className="text-xs text-ink2">版本号</div>
-                  <div className="text-lg font-semibold text-ink mt-1">v1.7.2</div>
+                  <div className="text-lg font-semibold text-ink mt-1">v1.7.3</div>
                 </div>
                 <div className="bg-bg/50 rounded-pix p-3 border border-border">
                   <div className="text-xs text-ink2">更新日期</div>
-                  <div className="text-lg font-semibold text-ink mt-1">2026-09-06</div>
+                  <div className="text-lg font-semibold text-ink mt-1">2026-09-19</div>
                 </div>
                 <div className="bg-bg/50 rounded-pix p-3 border border-border">
-                  <div className="text-xs text-ink2">框架版本</div>
+                  <div className="text-xs text-ink2">框架</div>
                   <div className="text-lg font-semibold text-ink mt-1">Tauri v2</div>
                 </div>
               </div>
-            </Card>
-
-            <Card title="软件介绍" hoverable={false}>
               <div className="space-y-3 text-sm text-ink">
                 <p>
-                  日报助手是一款基于 AI 的智能工作记录与报告生成工具，帮助您自动记录日常工作内容，轻松生成日报、周报、月报。
+                  日报助手是一款基于 AI 的智能工作记录与报告生成工具：定时截图 + AI 理解自动记录工作，
+                  生成日报/周报；支持自选模型（云端/本地 Ollama）、自托管 NAS 同步、可审计的隐私脱敏与加密备份。
                 </p>
-                <p>
-                  通过定时截图、待办管理和手动记录三种方式，全面收集您的工作数据，并利用大语言模型自动分析、分类和扩写，最终生成专业的工作汇报文档。
+                <div className="flex flex-wrap gap-2">
+                  {['自动截图', 'AI 分析', '本地模型', 'OCR 两段式', '隐私脱敏', 'NAS 自托管', '加密备份', '报告推送'].map((t) => (
+                    <span key={t} className="px-2 py-1 text-[11px] bg-primary-50 text-primary-700 rounded-pix border border-primary-200">{t}</span>
+                  ))}
+                </div>
+                <p className="text-ink2">
+                  完整操作说明见{' '}
+                  <button className="text-primary-700 hover:underline" onClick={() => navigate('/manual')}>
+                    使用手册
+                  </button>
+                  。
                 </p>
-                <div className="flex flex-wrap gap-2 pt-2">
-                  <span className="px-2 py-1 text-[11px] bg-primary-50 text-primary-700 rounded-pix border border-primary-200">自动截图</span>
-                  <span className="px-2 py-1 text-[11px] bg-primary-50 text-primary-700 rounded-pix border border-primary-200">AI分析</span>
-                  <span className="px-2 py-1 text-[11px] bg-primary-50 text-primary-700 rounded-pix border border-primary-200">待办管理</span>
-                  <span className="px-2 py-1 text-[11px] bg-primary-50 text-primary-700 rounded-pix border border-primary-200">报告生成</span>
-                  <span className="px-2 py-1 text-[11px] bg-primary-50 text-primary-700 rounded-pix border border-primary-200">多格式导出</span>
-                </div>
-              </div>
-            </Card>
-
-            <Card title="软件结构" hoverable={false}>
-              <div className="space-y-4">
-                <div>
-                  <div className="text-xs font-medium text-primary-700 mb-2">前端架构</div>
-                  <div className="text-sm text-ink bg-bg/50 rounded-pix p-3 border border-border font-mono text-[11px]">
-                    <pre className="whitespace-pre-wrap">src/
-├── components/      # UI 组件（TitleBar, Sidebar, Card, Button 等）
-├── pages/           # 页面（Home, Todos, Timeline, Reports, Settings）
-├── api/             # 后端 API 调用（ipc.ts, types.ts）
-├── hooks/           # React Hooks（useConfig, useToast, useWatchStatus）
-├── App.tsx          # 应用入口
-├── main.tsx         # React 挂载点
-└── index.css        # 全局样式</pre>
+                <details className="mt-2 text-xs text-ink2">
+                  <summary className="cursor-pointer select-none text-ink">开发者信息（结构 / 逻辑 / 技术栈）</summary>
+                  <div className="mt-2 space-y-2">
+                    <p>结构：Tauri v2 + React 18 前端；Rust workspace（crates/core 采集与 LLM，src-tauri 命令层）；SQLite 本地存储。</p>
+                    <p>逻辑：监听循环每轮 截图 → dHash 去重 → 视觉/OCR 分析 → 脱敏入库；报告生成按模板汇总记录交 LLM 扩写。</p>
+                    <p>技术栈：Rust / tokio / reqwest / rusqlite / libgit2 / xcap；React / TypeScript / Tailwind / dayjs。</p>
                   </div>
-                </div>
-                <div>
-                  <div className="text-xs font-medium text-primary-700 mb-2">后端架构</div>
-                  <div className="text-sm text-ink bg-bg/50 rounded-pix p-3 border border-border font-mono text-[11px]">
-                    <pre className="whitespace-pre-wrap">src-tauri/
-├── src/
-│   ├── main.rs      # 应用入口
-│   ├── commands.rs  # 前端调用的命令
-│   ├── state.rs     # 全局状态管理
-│   ├── tray.rs      # 系统托盘
-│   └── popup.rs     # 待办弹窗
-├── crates/
-│   ├── core/        # 核心逻辑（截图、存储、LLM调用、报告生成）
-│   └── cli/         # 命令行工具
-└── tauri.conf.json  # Tauri 配置</pre>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            <Card title="软件逻辑" hoverable={false}>
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-xs font-medium text-primary-700 mb-2">数据收集流程</div>
-                    <ul className="text-sm text-ink space-y-1 list-disc list-inside">
-                      <li>定时截图 → 视觉模型分析 → 生成工作记录</li>
-                      <li>待办完成 → 自动写入时间线</li>
-                      <li>手动输入 → 文本模型扩写 → 自动分类</li>
-                    </ul>
-                  </div>
-                  <div>
-                    <div className="text-xs font-medium text-primary-700 mb-2">报告生成流程</div>
-                    <ul className="text-sm text-ink space-y-1 list-disc list-inside">
-                      <li>按日期范围筛选工作记录</li>
-                      <li>调用文本模型汇总分析</li>
-                      <li>生成 Markdown 格式报告</li>
-                      <li>支持导出为 MD/HTML/Word/TXT</li>
-                    </ul>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="text-xs font-medium text-primary-700 mb-2">核心数据流向</div>
-                  <div className="text-sm text-ink bg-bg/50 rounded-pix p-4 border border-border">
-                    <div className="flex flex-wrap items-center justify-center gap-3">
-                      <div className="px-3 py-2 bg-primary-100 text-primary-800 rounded-pix text-xs font-medium">待办输入</div>
-                      <span className="text-primary-400">→</span>
-                      <div className="px-3 py-2 bg-primary-100 text-primary-800 rounded-pix text-xs font-medium">截图监听</div>
-                      <span className="text-primary-400">→</span>
-                      <div className="px-3 py-2 bg-primary-100 text-primary-800 rounded-pix text-xs font-medium">手动记录</div>
-                      <span className="text-primary-400">→</span>
-                      <div className="px-3 py-2 bg-accent-100 text-accent-800 rounded-pix text-xs font-medium">LLM 分析扩写</div>
-                      <span className="text-primary-400">→</span>
-                      <div className="px-3 py-2 bg-accent-100 text-accent-800 rounded-pix text-xs font-medium">工作流水 (WorkLog)</div>
-                      <span className="text-primary-400">→</span>
-                      <div className="px-3 py-2 bg-green-100 text-green-800 rounded-pix text-xs font-medium">日报/周报/月报</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            <Card title="技术栈" hoverable={false}>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-bg/50 rounded-pix p-3 border border-border text-center">
-                  <div className="text-sm font-medium text-ink">前端</div>
-                  <div className="text-xs text-ink2 mt-1">React 18 + TypeScript</div>
-                </div>
-                <div className="bg-bg/50 rounded-pix p-3 border border-border text-center">
-                  <div className="text-sm font-medium text-ink">框架</div>
-                  <div className="text-xs text-ink2 mt-1">Tauri v2</div>
-                </div>
-                <div className="bg-bg/50 rounded-pix p-3 border border-border text-center">
-                  <div className="text-sm font-medium text-ink">样式</div>
-                  <div className="text-xs text-ink2 mt-1">Tailwind CSS 3</div>
-                </div>
-                <div className="bg-bg/50 rounded-pix p-3 border border-border text-center">
-                  <div className="text-sm font-medium text-ink">后端</div>
-                  <div className="text-xs text-ink2 mt-1">Rust</div>
-                </div>
+                </details>
               </div>
             </Card>
           </>

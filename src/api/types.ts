@@ -22,6 +22,17 @@ export interface LlmConfig {
   default_local_vision_id: string;
   /** true 时截图分析走本地视觉模型（热键 Ctrl+Alt+L 可切换） */
   use_local_vision: boolean;
+  /** OCR 两段式管线的 provider id（如智谱 glm-ocr）；空 = 不启用 */
+  ocr_provider_id: string;
+}
+
+export interface PrivacyConfig {
+  /** 本地二次脱敏开关（默认开启） */
+  enabled: boolean;
+  /** 注入 AI 提示词的自定义脱敏规则（最高优先级段） */
+  extra_prompt_rules: string;
+  /** 硬脱敏词表：入库前本地替换为「＊＊」 */
+  mask_words: string[];
 }
 
 export interface ScreenshotConfig {
@@ -34,6 +45,10 @@ export interface ScreenshotConfig {
   idle_skip_seconds: number;
   /** 画面与上一张几乎一致时跳过视觉分析（省 token） */
   dedup_screenshots: boolean;
+  /** 排除清单：应用名/窗口标题命中（子串、大小写不敏感）时不记录 */
+  exclude_apps: string[];
+  /** 不记录时段（支持跨天，如 22:00-08:00） */
+  quiet_periods: { start: string; end: string }[];
 }
 
 export interface ReportConfig {
@@ -122,6 +137,7 @@ export interface Config {
   profile: ProfileConfig;
   push: PushConfig;
   account: AccountConfig;
+  privacy: PrivacyConfig;
   db_path: string;
 }
 

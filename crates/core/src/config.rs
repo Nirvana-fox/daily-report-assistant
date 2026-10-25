@@ -108,9 +108,21 @@ pub struct LlmConfig {
     /// true 时截图分析走本地视觉模型（功能热键切换）。
     #[serde(default)]
     pub use_local_vision: bool,
+    /// OCR 两段式管线的 provider id（如智谱 glm-ocr）；空 = 不启用。
+    /// 启用后截图先经 OCR 提取全部文字，再交给默认文本模型归纳成工作记录；
+    /// OCR 任一步失败自动回退默认视觉模型。
+    #[serde(default)]
+    pub ocr_provider_id: String,
 }
 
 impl LlmConfig {
+    /// 解析"OCR provider"。未配置或无匹配返回 None。
+    pub fn resolve_ocr(&self) -> Option<&LlmProvider> {
+        if self.ocr_provider_id.trim().is_empty() {
+            return None;
+        }
+        self.providers.iter().find(|p| p.id == self.ocr_provider_id)
+    }
     /// 解析"默认文本 provider"。无匹配返回 None。
     pub fn resolve_text(&self) -> Option<&LlmProvider> {
         if self.default_text_id.trim().is_empty() {
@@ -170,6 +182,8 @@ struct LlmConfigRaw {
     default_local_vision_id: Option<String>,
     #[serde(default)]
     use_local_vision: Option<bool>,
+    #[serde(default)]
+    ocr_provider_id: Option<String>,
 
     // 旧扁平结构（仅在 providers 缺失时启用）
     #[serde(default)]
@@ -198,6 +212,7 @@ impl From<LlmConfigRaw> for LlmConfig {
                 default_vision_id: raw.default_vision_id.unwrap_or_default(),
                 default_local_vision_id: raw.default_local_vision_id.unwrap_or_default(),
                 use_local_vision: raw.use_local_vision.unwrap_or(false),
+                ocr_provider_id: raw.ocr_provider_id.unwrap_or_default(),
             };
         }
 
@@ -260,6 +275,7 @@ impl From<LlmConfigRaw> for LlmConfig {
             default_vision_id,
             default_local_vision_id: String::new(),
             use_local_vision: false,
+            ocr_provider_id: String::new(),
         }
     }
 }
@@ -285,6 +301,46 @@ pub struct ScreenshotConfig {
     /// 截图内容去重：画面与上一张几乎相同时跳过视觉分析（省 token）
     #[serde(default = "default_true")]
     pub dedup_screenshots: bool,
+    /// 排除清单：应用名命中（大小写不敏感子串匹配）时不截图、不记录、不计入应用时长。
+    /// 同时匹配前台应用名与窗口标题，例如「微信」「游戏」「steam」。
+    #[serde(default)]
+    pub exclude_apps: Vec<String>,
+    /// 不记录时段（HH:MM-HH:MM，支持跨天如 22:00-08:00）：时段内自动暂停采集。
+    #[serde(default)]
+    pub quiet_periods: Vec<QuietPeriod>,
+}
+
+/// 一段"不记录"时间窗。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct QuietPeriod {
+    /// 开始 HH:MM
+    #[serde(default)]
+    pub start: String,
+    /// 结束 HH:MM
+    #[serde(default)]
+    pub end: String,
+}
+
+impl QuietPeriod {
+    /// 判断给定本地时刻是否落在该时段内。支持跨天（start > end 时跨越午夜）。
+    pub fn contains(&self, t: chrono::NaiveTime) -> bool {
+        let parse = |s: &str| -> Option<chrono::NaiveTime> {
+            let s = s.trim();
+            if s.is_empty() {
+                return None;
+            }
+            // 兼容 "9:30" 与 "09:30"
+            chrono::NaiveTime::parse_from_str(s, "%H:%M").ok()
+        };
+        let (Some(start), Some(end)) = (parse(&self.start), parse(&self.end)) else {
+            return false;
+        };
+        if start <= end {
+            t >= start && t < end
+        } else {
+            t >= start || t < end
+        }
+    }
 }
 
 impl Default for ScreenshotConfig {
@@ -298,6 +354,8 @@ impl Default for ScreenshotConfig {
             monitor_index: default_monitor(),
             idle_skip_seconds: default_idle(),
             dedup_screenshots: true,
+            exclude_apps: Vec::new(),
+            quiet_periods: Vec::new(),
         }
     }
 }
@@ -370,6 +428,21 @@ impl ProfileConfig {
             && self.responsibilities.trim().is_empty()
             && self.collaborators.trim().is_empty()
             && self.extra.trim().is_empty()
+    }
+
+    /// 从「当前项目/业务」自由文本切出候选项目名，供截图分析匹配具体项目。
+    /// 按换行/顿号/逗号/分号切分，去掉列表符号，保留 40 字以内的条目。
+    pub fn project_names(&self) -> Vec<String> {
+        self.projects
+            .split(|c: char| c == '\n' || c == '、' || c == '，' || c == ',' || c == ';' || c == '；')
+            .map(|p| {
+                p.trim()
+                    .trim_start_matches(['-', '*', '•', '·', ' '])
+                    .trim()
+                    .to_string()
+            })
+            .filter(|p| !p.is_empty() && p.chars().count() <= 40)
+            .collect()
     }
 
     /// 拼装成给 LLM 的背景资料块（每行一条；空字段跳过）。
@@ -689,6 +762,30 @@ impl TodoConfig {
     }
 }
 
+/// 「隐私脱敏」用户自定义配置：
+/// - `extra_prompt_rules` 注入所有分析类系统提示词的最高优先级段（软约束）
+/// - `mask_words` 入库前本地确定性替换为「＊＊」（硬约束，不依赖模型）
+/// - `enabled = false` 时跳过本地二次脱敏（默认开启）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PrivacyConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub extra_prompt_rules: String,
+    #[serde(default)]
+    pub mask_words: Vec<String>,
+}
+
+impl Default for PrivacyConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            extra_prompt_rules: String::new(),
+            mask_words: Vec::new(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
@@ -701,6 +798,9 @@ pub struct Config {
     pub app: AppConfig,
     #[serde(default)]
     pub todo: TodoConfig,
+    /// 隐私脱敏（自定义规则与词表）。
+    #[serde(default)]
+    pub privacy: PrivacyConfig,
     /// 我的资料（AI 长期背景）。
     #[serde(default)]
     pub profile: ProfileConfig,

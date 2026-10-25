@@ -20,6 +20,10 @@
 
 功能路子参考了 [小黑日报助手](https://xiaohei.qitingai.com/) 的"截图记录 + AI 总结"，并基于开源项目 [ethanfly/report-assistant](https://github.com/ethanfly/report-assistant)（小T日报助手，MIT）二次开发，补齐并对齐了以下能力。
 
+## 📖 使用手册
+
+完整的操作说明、设置项解释与常见报错对照表见 [docs/使用手册.md](docs/使用手册.md)（应用内「侧边栏 → 使用手册」为同一份内容的页面版）。
+
 ## 🎯 特性
 
 - 🖥️ **截图工作流**：定时截屏 → 视觉模型识别工作类别 → 入库

@@ -42,6 +42,20 @@ pub enum Error {
 }
 
 impl Error {
+    /// 完整错误链：把底层 source（如「operation timed out」「tcp connect refused」）
+    /// 拼进消息。reqwest 只显示 "error sending request for url"，不看链就无法区分
+    /// 超时与连接拒绝，排障全靠猜。
+    pub fn full_chain(&self) -> String {
+        let mut msg = self.to_string();
+        let mut src = std::error::Error::source(self);
+        while let Some(e) = src {
+            msg.push_str(" ← ");
+            msg.push_str(&e.to_string());
+            src = e.source();
+        }
+        msg
+    }
+
     pub fn config(msg: impl Into<String>) -> Self {
         Self::Config(msg.into())
     }

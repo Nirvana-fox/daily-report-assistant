@@ -23,7 +23,7 @@ use report_assistant_core::{
     screenshot::{self, MonitorInfo},
     storage::{PurgeStats, Report, StorageStats, Todo, WorkLog},
     templates::{self, ReportTemplate},
-    watch::{self, WatchEvent, build_vision_user_prompt},
+    watch::{self, WatchEvent, build_vision_user_prompt, collect_project_hints, parse_vision_json},
 };
 use serde_json::json;
 use tauri::{AppHandle, Emitter, State};
@@ -256,7 +256,7 @@ pub async fn list_monitors() -> Result<Vec<MonitorInfo>, String> {
 #[tauri::command]
 pub async fn capture_once(state: State<'_, AppStateHandle>) -> Result<WorkLog, String> {
     // 1) 拷贝所需配置（视觉 provider 按当前模式解析：本地/云端）
-    let (vision_provider, screenshot_dir, monitor_index, keep, sync_images, use_local) = {
+    let (vision_provider, screenshot_dir, monitor_index, keep, sync_images, use_local, project_hints) = {
         let cfg = state.config.lock();
         let dir = cfg.resolved_screenshot_dir().map_err(|e| e.to_string())?;
         let provider = cfg
@@ -273,6 +273,7 @@ pub async fn capture_once(state: State<'_, AppStateHandle>) -> Result<WorkLog, S
             cfg.screenshot.keep_after_analysis,
             cfg.nas.sync_images,
             cfg.llm.use_local_vision,
+            collect_project_hints(&cfg),
         )
     };
 
@@ -284,6 +285,17 @@ pub async fn capture_once(state: State<'_, AppStateHandle>) -> Result<WorkLog, S
         .await
         .map_err(|e| e.to_string())?;
 
+    // 排除清单：手动截图同样拦截，保持隐私边界一致（可在设置 → 截图中调整）
+    {
+        let cfg = state.config.lock();
+        if watch::is_app_excluded(&ctx, &cfg.screenshot.exclude_apps) {
+            return Err(format!(
+                "当前应用「{}」在排除清单中，未进行记录。可在 设置 → 截图 → 排除清单 中调整。",
+                ctx.app
+            ));
+        }
+    }
+
     // 4) 截图（阻塞）
     let dir_for_blk = screenshot_dir.clone();
     let path = tokio::task::spawn_blocking(move || {
@@ -293,9 +305,27 @@ pub async fn capture_once(state: State<'_, AppStateHandle>) -> Result<WorkLog, S
     .map_err(|e| e.to_string())?
     .map_err(|e| e.to_string())?;
 
-    // 5) 视觉分析（隐私脱敏系统提示词 + 前台上下文）
-    let user_prompt = watch::build_vision_user_prompt(&ctx);
-    let analyze = llm.analyze_image(&path, &user_prompt).await;
+    // 5) 视觉分析（脱敏系统提示词含自定义规则 + 前台上下文 + 项目清单 + 近期记录）
+    let (privacy_cfg, extra_rules) = {
+        let cfg = state.config.lock();
+        (cfg.privacy.clone(), cfg.privacy.extra_prompt_rules.clone())
+    };
+    let recent_titles: Vec<String> = {
+        let now = Local::now();
+        let window_start = now - chrono::Duration::hours(12);
+        state
+            .storage
+            .list_work_logs(window_start, now, Some("screenshot"))
+            .unwrap_or_default()
+            .into_iter()
+            .take(6)
+            .map(|l| l.title)
+            .filter(|t| !t.trim().is_empty())
+            .collect()
+    };
+    let sys_prompt = watch::vision_system_prompt(&extra_rules);
+    let user_prompt = watch::build_vision_user_prompt(&ctx, &project_hints, &recent_titles);
+    let analyze = llm.analyze_image(&path, &sys_prompt, &user_prompt).await;
 
     // 图片去留：与 watch 循环同一策略
     let parsed_ok = analyze.is_ok();
@@ -316,14 +346,15 @@ pub async fn capture_once(state: State<'_, AppStateHandle>) -> Result<WorkLog, S
     let raw = analyze.map_err(|e| e.to_string())?;
 
     // 6) 解析 JSON
-    let (category, title, summary, keywords) = parse_vision_text(&raw);
+    let parsed = parse_vision_json(&raw, &privacy_cfg);
 
     // 7) 入库（同步）
     let now = Local::now();
     let storage = state.storage.clone();
     let image_kept = parsed_ok && (keep || pending_delete);
     let meta = json!({
-        "keywords": keywords,
+        "keywords": parsed.keywords,
+        "project": parsed.project,
         "image_path": if image_kept { path.to_string_lossy().to_string() } else { String::new() },
         "nas_pending_delete": pending_delete,
         "frontmost_app": ctx.app,
@@ -333,9 +364,9 @@ pub async fn capture_once(state: State<'_, AppStateHandle>) -> Result<WorkLog, S
 
     let id = {
         let storage = storage.clone();
-        let title = title.clone();
-        let summary = summary.clone();
-        let category = category.clone();
+        let title = parsed.title.clone();
+        let summary = parsed.summary.clone();
+        let category = parsed.category.clone();
         let meta = meta.clone();
         tokio::task::spawn_blocking(move || {
             storage.add_work_log(
@@ -357,9 +388,9 @@ pub async fn capture_once(state: State<'_, AppStateHandle>) -> Result<WorkLog, S
         id,
         ts: now,
         source: "screenshot".to_string(),
-        category: Some(category),
-        title,
-        content: summary,
+        category: Some(parsed.category),
+        title: parsed.title,
+        content: parsed.summary,
         meta,
         created_at: now,
     })
@@ -540,16 +571,16 @@ pub async fn add_manual_log(
         .chat(messages, None, None)
         .await
         .map_err(|e| e.to_string())?;
-    let (category, title, summary, keywords) = parse_vision_text(&raw);
+    let parsed = parse_vision_json(&raw, &cfg.privacy);
 
     let meta = json!({
         "manual_input": trimmed,
-        "keywords": keywords,
+        "keywords": parsed.keywords,
     });
     let storage_clone = storage.clone();
-    let title_clone = title.clone();
-    let summary_clone = summary.clone();
-    let category_clone = category.clone();
+    let title_clone = parsed.title.clone();
+    let summary_clone = parsed.summary.clone();
+    let category_clone = parsed.category.clone();
     let meta_clone = meta.clone();
     let id = tokio::task::spawn_blocking(move || {
         storage_clone.add_work_log(
@@ -570,9 +601,9 @@ pub async fn add_manual_log(
         id,
         ts: event_time,
         source: "manual".to_string(),
-        category: Some(category),
-        title,
-        content: summary,
+        category: Some(parsed.category),
+        title: parsed.title,
+        content: parsed.summary,
         meta,
         created_at: event_time,
     })
@@ -2042,81 +2073,6 @@ fn expand_dir(s: &str) -> PathBuf {
     paths::expand_tilde(trimmed)
 }
 
-/// 简化版的 vision JSON 解析（与 watch 模块逻辑等价，但不复用 private 函数）。
-fn parse_vision_text(text: &str) -> (String, String, String, Vec<String>) {
-    let mut s = text.trim().to_string();
-    if s.starts_with("```") {
-        let lines: Vec<&str> = s.lines().collect();
-        let body: Vec<&str> = lines
-            .iter()
-            .skip_while(|l| l.starts_with("```"))
-            .take_while(|l| l.trim() != "```")
-            .copied()
-            .collect();
-        s = body.join("\n").trim().to_string();
-    }
-    if !s.starts_with('{') {
-        if let (Some(i), Some(j)) = (s.find('{'), s.rfind('}')) {
-            if j > i {
-                s = s[i..=j].to_string();
-            }
-        }
-    }
-    match serde_json::from_str::<serde_json::Value>(&s) {
-        Ok(v) => {
-            let category = v
-                .get("category")
-                .and_then(|x| x.as_str())
-                .unwrap_or("其他")
-                .to_string();
-            let title: String = v
-                .get("title")
-                .and_then(|x| x.as_str())
-                .unwrap_or("屏幕内容")
-                .chars()
-                .take(60)
-                .collect();
-            let summary: String = v
-                .get("summary")
-                .and_then(|x| x.as_str())
-                .unwrap_or("")
-                .chars()
-                .take(500)
-                .collect();
-            let keywords: Vec<String> = v
-                .get("keywords")
-                .and_then(|x| x.as_array())
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|x| x.as_str().map(|s| s.to_string()))
-                        .take(10)
-                        .collect()
-                })
-                .unwrap_or_default();
-            // 本地脱敏兜底
-            (
-                category,
-                report_assistant_core::privacy::sanitize(&title),
-                report_assistant_core::privacy::sanitize(&summary),
-                {
-                    let mut kw = keywords;
-                    report_assistant_core::privacy::sanitize_all(&mut kw);
-                    kw
-                },
-            )
-        }
-        Err(_) => (
-            "其他".to_string(),
-            report_assistant_core::privacy::sanitize(
-                &text.trim().chars().take(30).collect::<String>(),
-            ),
-            report_assistant_core::privacy::sanitize(
-                &text.trim().chars().take(300).collect::<String>(),
-            ),
-            vec![],
-        ),
-    }
-}
 
 // 让 `Arc` 在 doc 测试 / 文档示例中可见，避免未使用 import 的警告。
 #[allow(dead_code)]

@@ -319,10 +319,22 @@ fn build_user_prompt(
                 } else {
                     s.content.clone()
                 };
+                let project = s
+                    .meta
+                    .get("project")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .trim();
+                let project_tag = if project.is_empty() {
+                    String::new()
+                } else {
+                    format!("【{}】", project)
+                };
                 let _ = writeln!(
                     out,
-                    "- [{}] {} — {}",
+                    "- [{}] {}{} — {}",
                     s.ts.format("%m-%d %H:%M"),
+                    project_tag,
                     s.title,
                     summary,
                 );

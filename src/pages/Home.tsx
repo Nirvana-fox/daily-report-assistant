@@ -622,8 +622,15 @@ export default function Home() {
               <li key={l.id} className="py-3 flex items-start gap-3 hover:bg-bg/40 -mx-2 px-2 rounded-pix transition-colors">
                 <SourceTag source={l.source} category={l.category} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-ink truncate">
-                    {l.title || '(无标题)'}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="text-sm font-medium text-ink truncate">
+                      {l.title || '(无标题)'}
+                    </div>
+                    {l.meta?.project && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-pix bg-primary-50 text-primary-700 border border-primary-100 shrink-0">
+                        {l.meta.project}
+                      </span>
+                    )}
                   </div>
                   {l.content && (
                     <div className="text-xs text-ink2 line-clamp-2 mt-0.5">

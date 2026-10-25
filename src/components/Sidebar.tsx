@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import {
+  BookOpen,
   Home as HomeIcon,
   Clock,
   FileText,
@@ -28,6 +29,7 @@ const items = [
   { to: '/timeline', label: '时间线', icon: Clock },
   { to: '/reports', label: '报告', icon: FileText },
   { to: '/settings', label: '设置', icon: SettingsIcon },
+  { to: '/manual', label: '使用手册', icon: BookOpen },
 ];
 
 /**

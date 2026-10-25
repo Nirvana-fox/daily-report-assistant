@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Timeline from './pages/Timeline';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import Manual from './pages/Manual';
 import Todos from './pages/Todos';
 import TodayOverview from './pages/TodayOverview';
 import HeatMap from './pages/HeatMap';
@@ -121,6 +122,7 @@ function RoutesWithFade() {
         <Route path="/timeline" element={<Timeline />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/manual" element={<Manual />} />
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
     </div>
