@@ -18,6 +18,7 @@ import {
   HardDrive,
   RefreshCw,
   UserCog,
+  Palette,
   ClipboardList,
   X,
   Bell,
@@ -67,12 +68,21 @@ import type {
   StorageStats,
 } from '../api/types';
 import { useToast } from '../hooks/useToast';
+import AppearanceTab from './settings/AppearanceTab';
 import dayjs from 'dayjs';
 
-type TabKey = 'model' | 'capture' | 'personal' | 'report' | 'data' | 'general';
+type TabKey =
+  | 'model'
+  | 'capture'
+  | 'appearance'
+  | 'personal'
+  | 'report'
+  | 'data'
+  | 'general';
 
 const SETTING_TABS = [
   { key: 'model' as const, label: '模型', icon: <Cpu size={14} /> },
+  { key: 'appearance' as const, label: '外观', icon: <Palette size={14} /> },
   { key: 'capture' as const, label: '采集与隐私', icon: <Camera size={14} /> },
   { key: 'personal' as const, label: '个性化', icon: <UserCog size={14} /> },
   { key: 'report' as const, label: '报告与推送', icon: <FileText size={14} /> },
@@ -564,6 +574,9 @@ export default function Settings() {
       <Tabs tabs={SETTING_TABS} value={tab} onChange={setTab} />
 
       <div key={tab} className="animate-fadein">
+        {/* 外观主题 */}
+        {tab === 'appearance' && <AppearanceTab />}
+
         {/* LLM */}
         {tab === 'model' && (
           <Card
