@@ -1,121 +1,150 @@
+import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
+  BookOpen,
+  ChevronsLeft,
+  ChevronsRight,
   Home as HomeIcon,
   Clock,
   FileText,
   ListTodo,
   Settings as SettingsIcon,
   BarChart3,
-  Calendar,
-  Activity,
   CalendarDays,
   Brain,
-  Archive,
 } from 'lucide-react';
 import { useWatchStatus } from '../hooks/useWatchStatus';
 import Avatar from './Avatar';
 import clsx from 'clsx';
 
+/** 新信息架构：侧栏 8 个入口（统计=热力图+应用使用，报告=生成+历史） */
 const items = [
   { to: '/home', label: '首页', icon: HomeIcon },
-  { to: '/today', label: '今日工作', icon: Calendar },
-  { to: '/plan', label: '规划', icon: CalendarDays },
-  { to: '/plan-master', label: 'AI 助手', icon: Brain },
-  { to: '/history-reports', label: '历史报告', icon: Archive },
-  { to: '/heatmap', label: '时段热力图', icon: Activity },
-  { to: '/appusage', label: '应用使用', icon: BarChart3 },
-  { to: '/todos', label: '待办', icon: ListTodo },
   { to: '/timeline', label: '时间线', icon: Clock },
   { to: '/reports', label: '报告', icon: FileText },
-  { to: '/settings', label: '设置', icon: SettingsIcon },
+  { to: '/stats', label: '统计', icon: BarChart3 },
+  { to: '/todos', label: '待办', icon: ListTodo },
+  { to: '/plan-master', label: 'AI 助手', icon: Brain },
+  { to: '/plan', label: '规划', icon: CalendarDays, sep: true },
+  { to: '/settings', label: '设置', icon: SettingsIcon, foot: true },
+  { to: '/manual', label: '使用手册', icon: BookOpen, foot: true },
 ];
 
+const RAIL_KEY = 'ra-rail-open';
+
 /**
- * 浅色像素风侧边栏
- * - 220px 宽，白底，右边 1px 边框
- * - 选中态：左侧 3px primary 竖条 + 浅绿背景
+ * 像素风图标栏侧边栏
+ * - 收起 62px 仅图标（title 提示），点 » 展开到 200px 显示文字
+ * - 选中态：浅主色背景 + 主色文字
  */
 export default function Sidebar() {
   const { status } = useWatchStatus();
+  const [open, setOpen] = useState(() => localStorage.getItem(RAIL_KEY) === 'open');
+
+  useEffect(() => {
+    localStorage.setItem(RAIL_KEY, open ? 'open' : 'closed');
+  }, [open]);
+
+  const mainItems = items.filter((it) => !it.foot);
+  const footItems = items.filter((it) => it.foot);
+
+  const renderItem = (it: (typeof items)[number]) => {
+    const Icon = it.icon;
+    return (
+      <NavLink
+        key={it.to}
+        to={it.to}
+        title={open ? undefined : it.label}
+        className={({ isActive }) =>
+          clsx(
+            'group relative flex items-center rounded-pix text-sm transition-all duration-150 justify-center',
+            open && 'justify-start gap-3 px-3 py-2',
+            !open && 'py-2.5',
+            isActive
+              ? 'bg-primary-50 text-primary-700 font-medium'
+              : 'text-ink2 hover:bg-bg hover:text-ink'
+          )
+        }
+      >
+        {({ isActive }) => (
+          <>
+            <Icon
+              size={17}
+              className={clsx(
+                'transition-colors shrink-0',
+                isActive ? 'text-primary-700' : 'text-ink2'
+              )}
+            />
+            {open && <span className="truncate">{it.label}</span>}
+            {open && it.sep && <span className="sr-only">（次级）</span>}
+          </>
+        )}
+      </NavLink>
+    );
+  };
 
   return (
-    <aside className="flex flex-col w-[220px] shrink-0 bg-white border-r border-border">
-      {/* 顶部 logo + 标题 */}
-      <div className="px-4 py-4 border-b border-border">
-        <div className="flex items-center gap-3">
-          <Avatar src="/avatar.png" size={32} />
-          <div className="leading-tight min-w-0">
-            <div className="text-[14px] font-semibold text-ink text-pix truncate">
+    <aside
+      className={clsx(
+        'flex flex-col shrink-0 bg-card border-r border-border transition-all duration-200',
+        open ? 'w-[200px]' : 'w-[62px]'
+      )}
+    >
+      {/* 顶部 logo + 展开按钮 */}
+      <div className="flex items-center gap-2 px-2.5 pt-3 pb-2">
+        <Avatar src="/avatar.png" size={26} />
+        {open && (
+          <div className="leading-tight min-w-0 flex-1">
+            <div className="text-[13px] font-semibold text-ink text-pix truncate">
               日报助手
             </div>
-            <div className="text-[10px] text-ink2 mt-0.5 truncate">
-              Report Assistant
-            </div>
           </div>
-        </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          title={open ? '收起' : '展开'}
+          aria-label={open ? '收起侧栏' : '展开侧栏'}
+          className="ml-auto w-7 h-7 rounded-pix flex items-center justify-center text-ink2 hover:bg-bg hover:text-ink transition-colors shrink-0"
+        >
+          {open ? <ChevronsLeft size={15} /> : <ChevronsRight size={15} />}
+        </button>
       </div>
 
-      {/* 菜单 */}
-      <nav className="flex-1 py-3 px-2 space-y-0.5">
-        {items.map((it) => {
-          const Icon = it.icon;
-          return (
-            <NavLink
-              key={it.to}
-              to={it.to}
-              className={({ isActive }) =>
-                clsx(
-                  'group relative flex items-center gap-3 pl-4 pr-3 py-2 rounded-pix text-sm transition-all duration-150',
-                  isActive
-                    ? 'bg-primary-50 text-ink font-medium'
-                    : 'text-ink2 hover:bg-bg hover:text-ink'
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {/* 选中竖条 */}
-                  <span
-                    className={clsx(
-                      'absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r transition-all',
-                      isActive ? 'bg-primary' : 'bg-transparent'
-                    )}
-                  />
-                  <Icon
-                    size={16}
-                    className={clsx(
-                      'transition-colors',
-                      isActive ? 'text-primary-700' : 'text-ink2'
-                    )}
-                  />
-                  <span>{it.label}</span>
-                </>
-              )}
-            </NavLink>
-          );
-        })}
+      {/* 主导航 */}
+      <nav className="flex-1 px-2 pt-1 space-y-0.5 flex flex-col">
+        {mainItems.map(renderItem)}
+        {/* 分隔：规划为次级入口 */}
+        <div className="my-1.5 mx-1 border-t border-border" />
+        {renderItem(items.find((it) => it.to === '/plan')!)}
       </nav>
 
-      {/* 底部状态 */}
-      <div className="px-4 py-3 border-t border-border bg-bg/50">
-        <div className="flex items-center gap-2 text-xs">
+      {/* 底部：设置 / 手册 / 状态 */}
+      <div className="px-2 pb-3 pt-2 space-y-0.5 border-t border-border mt-1">
+        {footItems.map(renderItem)}
+        <div
+          className={clsx(
+            'flex items-center gap-2 text-xs px-3 py-1.5 rounded-pix',
+            open ? 'justify-start' : 'justify-center'
+          )}
+          title={status.lastError || undefined}
+        >
           <span
             className={clsx(
-              'inline-block w-2 h-2 rounded-full',
+              'inline-block w-2 h-2 rounded-full shrink-0',
               status.running ? 'bg-primary animate-pulse' : 'bg-ink2/30'
             )}
           />
-          <span className={status.running ? 'text-ink' : 'text-ink2'}>
-            {status.running ? '监听中' : '已停止'}
-          </span>
-          {status.running && status.intervalSeconds ? (
-            <span className="text-ink2/70">· {status.intervalSeconds}s</span>
-          ) : null}
+          {open && (
+            <span className={clsx('truncate', status.running ? 'text-ink' : 'text-ink2')}>
+              {status.running
+                ? `监听中${status.intervalSeconds ? ` · ${status.intervalSeconds}s` : ''}`
+                : '已停止'}
+            </span>
+          )}
         </div>
-        {status.lastError ? (
-          <div className="mt-2 text-[11px] text-red-500/90 line-clamp-2">
-            {status.lastError}
-          </div>
+        {open && status.lastError ? (
+          <div className="px-3 text-[11px] text-red-500/90 line-clamp-2">{status.lastError}</div>
         ) : null}
       </div>
     </aside>

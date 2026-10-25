@@ -9,6 +9,11 @@ import type {
   GenerateRequest,
   GenerateResult,
   HeatMapRecord,
+  ProfileField,
+  ProfileSuggestion,
+  ProjectDossier,
+  DreamStats,
+  DreamLogRow,
   LlmMode,
   LlmProvider,
   MonitorInfo,
@@ -36,6 +41,7 @@ const DEFAULT_CONFIG: Config = {
     default_vision_id: '',
     default_local_vision_id: '',
     use_local_vision: false,
+    ocr_provider_id: '',
   },
   screenshot: {
     enabled: true,
@@ -46,6 +52,8 @@ const DEFAULT_CONFIG: Config = {
     monitor_index: 0,
     idle_skip_seconds: 120,
     dedup_screenshots: true,
+    exclude_apps: [],
+    quiet_periods: [],
   },
   report: {
     default_template: 'standard',
@@ -53,6 +61,11 @@ const DEFAULT_CONFIG: Config = {
     user_name: '',
     team: '',
     custom_instructions: '',
+  },
+  privacy: {
+    enabled: true,
+    extra_prompt_rules: '',
+    mask_words: [],
   },
   profile: {
     display_name: '',
@@ -475,3 +488,49 @@ export const onLlmModeChanged = (cb: (mode: LlmMode) => void): Promise<UnlistenF
 
 // ===== 事件 =====
 export const onWatchEvent = (cb: (e: WatchEvent) => void): Promise<UnlistenFn> => safeListen('watch-event', cb);
+
+// ===== AI 个人档案（长期记忆） =====
+export const profileListFields = (includeHidden = true) =>
+  safeInvoke<ProfileField[]>('profile_list_fields', { includeHidden }, []);
+
+export const profileAddField = (groupName: string, key: string, value: string) =>
+  safeInvoke<ProfileField>('profile_add_field', { groupName, key, value });
+
+export const profileUpdateField = (id: number, value: string) =>
+  safeInvoke<boolean>('profile_update_field', { id, value }, false);
+
+export const profileSetFieldHidden = (id: number, hidden: boolean) =>
+  safeInvoke<boolean>('profile_set_field_hidden', { id, hidden }, false);
+
+export const profileDeleteField = (id: number) =>
+  safeInvoke<boolean>('profile_delete_field', { id }, false);
+
+export const profileListProjects = () =>
+  safeInvoke<ProjectDossier[]>('profile_list_projects', {}, []);
+
+export const profileSaveProject = (
+  request: Partial<ProjectDossier> & { name: string; status: string }
+) => safeInvoke<number>('profile_save_project', { request }, 0);
+
+export const profileCompleteProject = (id: number, endDate?: string) =>
+  safeInvoke<boolean>('profile_complete_project', { id, endDate }, false);
+
+export const profileDeleteProject = (id: number) =>
+  safeInvoke<boolean>('profile_delete_project', { id }, false);
+
+export const profileListSuggestions = (status?: string) =>
+  safeInvoke<ProfileSuggestion[]>('profile_list_suggestions', { status }, []);
+
+export const profileDecideSuggestion = (
+  id: number,
+  accept: boolean,
+  editedValue?: string
+) => safeInvoke<boolean>('profile_decide_suggestion', { id, accept, editedValue }, false);
+
+export const profilePendingCount = () =>
+  safeInvoke<number>('profile_pending_count', {}, 0);
+
+export const profileDreamNow = () => safeInvoke<DreamStats>('profile_dream_now', {});
+
+export const profileDreamLog = (limit = 20) =>
+  safeInvoke<DreamLogRow[]>('profile_dream_log', { limit }, []);

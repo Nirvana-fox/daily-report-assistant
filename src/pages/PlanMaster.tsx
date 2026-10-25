@@ -37,6 +37,12 @@ import { useToast } from '../hooks/useToast';
 import clsx from 'clsx';
 import dayjs from 'dayjs';
 import { open as openDialog } from '@tauri-apps/plugin-dialog';
+import { profilePendingCount } from '../api/ipc';
+import ProfileTab from './planmaster/ProfileTab';
+import ProjectsTab from './planmaster/ProjectsTab';
+import SuggestionsTab from './planmaster/SuggestionsTab';
+
+type MasterTab = 'chat' | 'profile' | 'projects' | 'suggestions';
 
 interface Message {
   id: string;
@@ -356,6 +362,18 @@ export default function PlanMaster() {
     return null;
   };
 
+  const [tab, setTab] = useState<MasterTab>('chat');
+  const [pendingCount, setPendingCount] = useState(0);
+
+  // 待确认建议数：挂载时 + 从其他 Tab 切回时刷新
+  useEffect(() => {
+    if (tab === 'chat') {
+      profilePendingCount()
+        .then(setPendingCount)
+        .catch(() => {});
+    }
+  }, [tab]);
+
   return (
     <div className="p-6 space-y-5 h-full flex flex-col">
       <header className="flex items-center justify-between">
@@ -403,7 +421,50 @@ export default function PlanMaster() {
         </div>
       </header>
 
-      <div className="flex-1 flex gap-5 min-h-0">
+      {/* 四 Tab：对话 / 我的档案 / 项目档案 / 待确认 */}
+      <div className="flex rounded-pix border border-border bg-card p-0.5 w-fit">
+        {(
+          [
+            { key: 'chat', label: '对话', icon: Bot },
+            { key: 'profile', label: '我的档案', icon: User },
+            { key: 'projects', label: '项目档案', icon: FileText },
+            { key: 'suggestions', label: '待确认', icon: ListChecks },
+          ] as const
+        ).map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={clsx(
+              'relative flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium rounded-pix transition-all',
+              tab === t.key
+                ? 'bg-primary-50 text-primary-700'
+                : 'text-ink2 hover:text-ink'
+            )}
+          >
+            <t.icon size={13} />
+            {t.label}
+            {t.key === 'suggestions' && pendingCount > 0 && (
+              <span className="ml-0.5 min-w-[16px] h-4 px-1 rounded-full bg-accent-500 text-white text-[10px] leading-4 text-center">
+                {pendingCount > 99 ? '99+' : pendingCount}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {tab !== 'chat' && (
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {tab === 'profile' && <ProfileTab />}
+          {tab === 'projects' && <ProjectsTab />}
+          {tab === 'suggestions' && <SuggestionsTab />}
+        </div>
+      )}
+
+      <div
+        className="flex-1 flex gap-5 min-h-0"
+        style={tab === 'chat' ? undefined : { display: 'none' }}
+      >
         <div className="flex-1 flex flex-col min-w-0">
           <Card className="flex-1 flex flex-col min-h-0">
             <div ref={scrollRef} className="flex-1 overflow-auto space-y-4 p-4">
@@ -464,7 +525,7 @@ export default function PlanMaster() {
                         <div className="mt-3 space-y-2 text-left">
                           <div className="text-xs text-ink2 font-medium">生成的计划：</div>
                           {msg.tasks.map((task) => (
-                            <div key={task.id} className="bg-bg/50 rounded-pix p-2 text-xs">
+                            <div key={task.id} className="bg-bg-soft rounded-pix p-2 text-xs">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="font-medium text-ink">{task.title}</span>
                                 <span
@@ -590,7 +651,7 @@ export default function PlanMaster() {
                 tasks.map((task) => (
                   <div
                     key={task.id}
-                    className="bg-bg/50 rounded-pix p-2.5 text-xs hover:bg-bg transition-colors"
+                    className="bg-bg-soft rounded-pix p-2.5 text-xs hover:bg-bg transition-colors"
                   >
                     <div className="flex items-start justify-between mb-1">
                       <span className="font-medium text-ink truncate flex-1">{task.title}</span>
@@ -642,7 +703,7 @@ export default function PlanMaster() {
               </div>
               <div className="space-y-2 max-h-[300px] overflow-auto">
                 {pendingTasks.map((task) => (
-                  <div key={task.id} className="bg-bg/50 rounded-pix p-2 text-xs">
+                  <div key={task.id} className="bg-bg-soft rounded-pix p-2 text-xs">
                     <div className="font-medium text-ink">{task.title}</div>
                     <div className="flex items-center gap-2 text-ink2 mt-1">
                       <span>
@@ -686,7 +747,7 @@ export default function PlanMaster() {
             </div>
             <div className="p-4">
               {tableFileName && (
-                <div className="text-xs text-ink2 mb-3 bg-bg/50 rounded-pix px-3 py-2">
+                <div className="text-xs text-ink2 mb-3 bg-bg-soft rounded-pix px-3 py-2">
                   已加载文件：{tableFileName}
                 </div>
               )}

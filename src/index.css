@@ -2,6 +2,162 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===========================================================================
+ * 主题令牌系统
+ * - 6 套中国传统色主题（data-accent）：竹青(默认) / 铜绿 / 靛青 / 黛紫 / 海棠红 / 秋香
+ * - 亮暗（data-theme）：light / dark
+ * - 中性底染色（data-tint="on"）：背景/边框/轨道随主色染色（决策 1）
+ * 颜色类在 tailwind.config.js 中映射到这些变量；改主题 = 改 data-* 属性。
+ * =========================================================================== */
+
+:root {
+  /* ---- 中性色（亮色，竹青基调共享） ---- */
+  --c-bg: #F5F9F5;
+  --bg-rgb: 245 249 245;
+  --c-bg2: #EDF3EE;
+  --c-card: #FFFFFF;
+  --c-border: #D7E5D8;
+  --c-ink: #2F3E2F;
+  --ink2-rgb: 107 132 114;
+  --c-ink3: #8AA091;
+  --c-track: #E9F2EA;
+
+  /* ---- 竹青（默认主题 · 亮色） ---- */
+  --p-rgb: 123 196 127;
+  --p-deep-rgb: 93 174 99;
+  --p-text-rgb: 74 143 80;
+  --c-primary: rgb(var(--p-rgb));
+  --c-soft: #F0F9F1;
+  --c-soft2: #F7FBF7;
+
+  /* ---- 阴影（像素风硬阴影） ---- */
+  --shadow-tint: rgb(47 62 47 / 0.08);
+  --shadow-card: 0 1px 0 0 rgb(47 62 47 / 0.04), 0 1px 3px rgb(47 62 47 / 0.06);
+  --shadow-soft: 0 4px 12px rgb(47 62 47 / 0.06);
+  --shadow-pix: 2px 2px 0 0 var(--shadow-tint);
+  --shadow-pixhover: 0 3px 0 0 rgb(var(--p-rgb) / 0.18), 2px 2px 0 0 var(--shadow-tint);
+
+  --titlebar-h: 30px;
+}
+
+[data-theme="dark"] {
+  --c-bg: #141D16;
+  --bg-rgb: 20 29 22;
+  --c-bg2: #18231B;
+  --c-card: #1C2820;
+  --c-border: #2B3B2F;
+  --c-ink: #DCE9DE;
+  --ink2-rgb: 138 166 148;
+  --c-ink3: #6E8878;
+  --c-track: rgba(255, 255, 255, 0.07);
+
+  /* 竹青 · 暗色 */
+  --p-rgb: 143 212 148;
+  --p-deep-rgb: 111 190 118;
+  --p-text-rgb: 143 212 148;
+  --c-soft: rgba(143, 212, 148, 0.13);
+  --c-soft2: #18231B;
+
+  --shadow-tint: rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 1px 0 0 rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- 铜绿 ---- */
+[data-accent="tonglv"] {
+  --p-rgb: 84 150 136;
+  --p-deep-rgb: 62 114 104;
+  --p-text-rgb: 62 114 104;
+  --c-soft: #EDF5F3;
+  --c-soft2: #F6FAF9;
+}
+[data-theme="dark"][data-accent="tonglv"] {
+  --p-rgb: 127 192 176;
+  --p-deep-rgb: 95 163 147;
+  --p-text-rgb: 127 192 176;
+  --c-soft: rgba(127, 192, 176, 0.13);
+  --c-soft2: #17231F;
+}
+
+/* ---- 靛青 ---- */
+[data-accent="dianqing"] {
+  --p-rgb: 43 140 192;
+  --p-deep-rgb: 6 82 121;
+  --p-text-rgb: 10 90 130;
+  --c-soft: #EBF5FB;
+  --c-soft2: #F5FAFD;
+}
+[data-theme="dark"][data-accent="dianqing"] {
+  --p-rgb: 111 183 224;
+  --p-deep-rgb: 78 156 201;
+  --p-text-rgb: 111 183 224;
+  --c-soft: rgba(111, 183, 224, 0.13);
+  --c-soft2: #162028;
+}
+
+/* ---- 黛紫 ---- */
+[data-accent="daizi"] {
+  --p-rgb: 124 107 174;
+  --p-deep-rgb: 74 66 102;
+  --p-text-rgb: 92 80 136;
+  --c-soft: #F2F0F8;
+  --c-soft2: #F9F8FC;
+}
+[data-theme="dark"][data-accent="daizi"] {
+  --p-rgb: 169 156 212;
+  --p-deep-rgb: 139 123 192;
+  --p-text-rgb: 169 156 212;
+  --c-soft: rgba(169, 156, 212, 0.13);
+  --c-soft2: #1D1B26;
+}
+
+/* ---- 海棠红 ---- */
+[data-accent="haitang"] {
+  --p-rgb: 219 90 107;
+  --p-deep-rgb: 157 41 51;
+  --p-text-rgb: 176 58 75;
+  --c-soft: #FBEFF1;
+  --c-soft2: #FDF7F8;
+}
+[data-theme="dark"][data-accent="haitang"] {
+  --p-rgb: 240 154 167;
+  --p-deep-rgb: 226 121 139;
+  --p-text-rgb: 240 154 167;
+  --c-soft: rgba(240, 154, 167, 0.13);
+  --c-soft2: #251A1C;
+}
+
+/* ---- 秋香 ---- */
+[data-accent="qiuxiang"] {
+  --p-rgb: 217 165 17;
+  --p-deep-rgb: 138 109 11;
+  --p-text-rgb: 138 109 11;
+  --c-soft: #FAF4E3;
+  --c-soft2: #FCF9F0;
+}
+[data-theme="dark"][data-accent="qiuxiang"] {
+  --p-rgb: 232 200 90;
+  --p-deep-rgb: 212 177 63;
+  --p-text-rgb: 232 200 90;
+  --c-soft: rgba(232, 200, 90, 0.14);
+  --c-soft2: #221F14;
+}
+
+/* ---- 决策 1：中性底随主题染色 ---- */
+[data-tint="on"] {
+  --c-bg: color-mix(in srgb, var(--c-primary) 7%, #F6F6F3);
+  --c-bg2: color-mix(in srgb, var(--c-primary) 8%, #F0F0EC);
+  --c-border: color-mix(in srgb, var(--c-primary) 24%, #D8D8D2);
+  --c-track: color-mix(in srgb, var(--c-primary) 14%, #E9E9E4);
+}
+[data-theme="dark"][data-tint="on"] {
+  --c-bg: color-mix(in srgb, var(--c-primary) 9%, #15151A);
+  --c-bg2: color-mix(in srgb, var(--c-primary) 8%, #191920);
+  --c-card: color-mix(in srgb, var(--c-primary) 6%, #1C1C22);
+  --c-border: color-mix(in srgb, var(--c-primary) 20%, #2A2A32);
+  --c-track: color-mix(in srgb, var(--c-primary) 16%, rgba(255, 255, 255, 0.05));
+}
+
 @layer base {
   html,
   body,
@@ -35,11 +191,11 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #C6E5C9;
+    background: var(--c-track);
     border-radius: 8px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #8FC893;
+    background: color-mix(in srgb, var(--c-primary) 45%, var(--c-track));
   }
 }
 
@@ -47,14 +203,14 @@
   /* 像素风卡片 */
   .card {
     @apply bg-card rounded-card border border-border p-5 transition-all duration-200;
-    box-shadow: 0 1px 0 0 rgb(47 62 47 / 0.04), 0 1px 3px rgb(47 62 47 / 0.06);
+    box-shadow: var(--shadow-card);
   }
   .card-hover {
     @apply hover:-translate-y-px hover:shadow-soft;
   }
 
   .input-base {
-    @apply block w-full rounded-pix border border-border bg-white px-3 py-2 text-sm text-ink
+    @apply block w-full rounded-pix border border-border bg-card px-3 py-2 text-sm text-ink
            placeholder:text-ink2/60 focus:border-primary focus:outline-none focus:ring-2
            focus:ring-primary/20 disabled:bg-bg disabled:text-ink2 transition-all;
   }
@@ -71,12 +227,12 @@
            active:bg-primary-700 active:translate-y-0 active:shadow-pix;
   }
   .btn-secondary {
-    @apply btn bg-white text-ink border border-border shadow-pix
+    @apply btn bg-card text-ink border border-border shadow-pix
            hover:bg-bg hover:border-primary-300 hover:-translate-y-px hover:shadow-pixhover
            active:translate-y-0 active:shadow-pix;
   }
   .btn-ghost {
-    @apply btn bg-transparent text-ink hover:bg-primary-50 hover:text-primary-700;
+    @apply btn bg-transparent text-ink hover:bg-[var(--c-soft)] hover:text-primary-700;
   }
   .btn-danger {
     @apply btn bg-red-500 text-white border border-red-600 shadow-pix
@@ -117,10 +273,10 @@
     @apply my-0.5;
   }
   .markdown-body code {
-    @apply bg-primary-50 text-primary-800 px-1.5 py-0.5 rounded text-[0.85em] font-mono;
+    @apply bg-[var(--c-soft)] text-primary-700 px-1.5 py-0.5 rounded text-[0.85em] font-mono;
   }
   .markdown-body pre {
-    @apply bg-ink text-white p-3 rounded-pix overflow-auto my-3;
+    @apply bg-ink text-bg p-3 rounded-pix overflow-auto my-3;
   }
   .markdown-body pre code {
     @apply bg-transparent p-0 text-inherit;
@@ -136,7 +292,7 @@
     @apply border border-border px-2 py-1;
   }
   .markdown-body th {
-    @apply bg-bg font-medium;
+    @apply bg-bg2 font-medium;
   }
   .markdown-body a {
     @apply text-primary-700 underline-offset-2 hover:underline;
@@ -157,6 +313,13 @@
   .text-pix {
     letter-spacing: 0.5px;
     font-weight: 700;
+  }
+  .bg-soft {
+    background-color: var(--c-soft);
+  }
+  /* 半透明背景 tint（替代 bg-bg/50） */
+  .bg-bg-soft {
+    background-color: color-mix(in srgb, var(--c-bg) 55%, transparent);
   }
 }
 
@@ -211,7 +374,7 @@
 /* Toast */
 .toast-stack {
   position: fixed;
-  top: 40px;
+  top: calc(var(--titlebar-h) + 10px);
   right: 16px;
   z-index: 1000;
   display: flex;
@@ -223,23 +386,23 @@
   pointer-events: auto;
   min-width: 240px;
   max-width: 360px;
-  background: #fff;
-  border: 1px solid #D7E5D8;
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
   border-radius: 6px;
-  box-shadow: 2px 2px 0 0 rgb(47 62 47 / 0.08), 0 4px 12px rgb(47 62 47 / 0.08);
+  box-shadow: var(--shadow-pix), 0 4px 12px rgb(0 0 0 / 0.10);
   padding: 10px 12px;
   font-size: 13px;
-  color: #2F3E2F;
+  color: var(--c-ink);
   display: flex;
   align-items: flex-start;
   gap: 8px;
   animation: toast-in 0.18s ease-out;
 }
 .toast-info {
-  border-left: 3px solid #7BC47F;
+  border-left: 3px solid rgb(var(--p-rgb));
 }
 .toast-success {
-  border-left: 3px solid #5DAE63;
+  border-left: 3px solid rgb(var(--p-deep-rgb));
 }
 .toast-error {
   border-left: 3px solid #ef4444;

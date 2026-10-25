@@ -4,6 +4,7 @@
 
 //! 小T日报助手 Tauri 主进程入口。
 
+mod background;
 mod commands;
 mod popup;
 mod state;
@@ -14,7 +15,7 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 use report_assistant_core::{config, logging, storage::Storage};
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 
 use crate::state::AppState;
 
@@ -185,6 +186,20 @@ fn main() {
             commands::account_login,
             commands::account_change_password,
             commands::account_set_enabled,
+            commands::profile_list_fields,
+            commands::profile_add_field,
+            commands::profile_update_field,
+            commands::profile_set_field_hidden,
+            commands::profile_delete_field,
+            commands::profile_list_projects,
+            commands::profile_save_project,
+            commands::profile_complete_project,
+            commands::profile_delete_project,
+            commands::profile_list_suggestions,
+            commands::profile_decide_suggestion,
+            commands::profile_pending_count,
+            commands::profile_dream_now,
+            commands::profile_dream_log,
         ])
         .setup(|app| {
             tray::setup(app.handle())?;
@@ -197,144 +212,10 @@ fn main() {
                 popup::register_hotkeys(app.handle(), &todo_cfg, Some(&shortcut_cfg));
             }
 
-            // 推送机器人调度线程：每 30s 检查一次是否到达推送时间。
-            // 到点 → 生成日报（+周报日附周报）→ 推送各启用渠道；每天最多一次。
-            {
-                let app_handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    // 等待应用完全启动
-                    tokio::time::sleep(std::time::Duration::from_secs(60)).await;
-                    loop {
-                        let state: tauri::State<'_, crate::state::AppStateHandle> =
-                            app_handle.state();
-                        let cfg = state.config.lock().clone();
-                        let push = &cfg.push;
-
-                        let weekday = report_assistant_core::push::today_weekday();
-                        let should_run = push.enabled
-                            && (push.should_push_daily_today(weekday)
-                                || push.should_push_weekly_today(weekday))
-                            && report_assistant_core::push::is_push_time_now(&cfg);
-
-                        if should_run {
-                            tracing::info!("推送时间到，开始生成并推送");
-                            let state2: tauri::State<'_, crate::state::AppStateHandle> =
-                                app_handle.state();
-                            let watch_handle = { state2.watch.lock().clone() };
-                            let resume_handle = { state2.watch.lock().clone() };
-                            let pause = move || {
-                                if let Some(h) = watch_handle.as_ref() {
-                                    if h.is_running() {
-                                        h.pause();
-                                    }
-                                }
-                            };
-                            let resume = move || {
-                                if let Some(h) = resume_handle.as_ref() {
-                                    if h.is_running() {
-                                        h.resume();
-                                    }
-                                }
-                            };
-                            let storage = state2.storage.clone();
-                            let result = report_assistant_core::push::run_push(
-                                &cfg, &storage, pause, resume, false,
-                            )
-                            .await;
-                            match result {
-                                Ok(st) if st.generated_daily => {
-                                    let ok = st.deliveries.iter().filter(|d| d.1).count();
-                                    let fail = st.deliveries.len() - ok;
-                                    tracing::info!("推送完成：成功 {ok} 渠道，失败 {fail}");
-                                    let _ = app_handle.emit("push-done", &st);
-                                }
-                                Ok(_) => {}
-                                Err(e) => tracing::warn!("推送失败: {e}"),
-                            }
-                        }
-
-                        tokio::time::sleep(std::time::Duration::from_secs(30)).await;
-                    }
-                });
-            }
-
-            // 启动 Git 提交收集轮询（未启用配置时空转）
-            {
-                let app_handle = app.handle().clone();
-                tauri::async_runtime::spawn(async move {
-                    loop {
-                        // 读取配置（启用/仓库/作者/间隔）
-                        let (enabled, repos, emails, names, interval) = {
-                            let state: tauri::State<'_, crate::state::AppStateHandle> =
-                                app_handle.state();
-                            let cfg = state.config.lock();
-                            let git = &cfg.git;
-                            (
-                                git.enabled,
-                                git.repos.clone(),
-                                git.author_emails.clone(),
-                                git.author_names.clone(),
-                                git.effective_interval(),
-                            )
-                        };
-
-                        if enabled && repos.iter().any(|r| !r.trim().is_empty()) {
-                            let since = chrono::Local::now() - chrono::Duration::hours(24);
-                            let commits = tokio::task::spawn_blocking(move || {
-                                report_assistant_core::git::collect_all(
-                                    &repos, &emails, &names, since,
-                                )
-                            })
-                            .await
-                            .unwrap_or_default();
-
-                            if !commits.is_empty() {
-                                let state: tauri::State<'_, crate::state::AppStateHandle> =
-                                    app_handle.state();
-                                let mut inserted = 0usize;
-                                for c in &commits {
-                                    let meta = serde_json::json!({
-                                        "repo": c.repo,
-                                        "commit_id": c.id,
-                                        "author": c.author,
-                                        "email": c.email,
-                                    });
-                                    let summary = c.summary.clone();
-                                    let commit_id = c.id.clone();
-                                    let ts = c.ts;
-                                    let res = {
-                                        let storage = state.storage.clone();
-                                        tokio::task::spawn_blocking(move || {
-                                            storage.add_work_log(
-                                                ts,
-                                                "git",
-                                                &summary,
-                                                &summary,
-                                                Some("开发"),
-                                                meta,
-                                                Some(&commit_id),
-                                            )
-                                        })
-                                        .await
-                                        .map_err(|e| e.to_string())
-                                    };
-                                    // 命中 dedupe（已入库过）返回的是已有 id，同样算成功
-                                    if res.is_ok() {
-                                        inserted += 1;
-                                    } else if let Err(e) = res {
-                                        tracing::warn!("git 提交入库失败: {e}");
-                                    }
-                                }
-                                if inserted > 0 {
-                                    tracing::info!("git 收集：入库 {} 条提交", inserted);
-                                }
-                            }
-                        }
-
-                        tokio::time::sleep(std::time::Duration::from_secs(interval)).await;
-                    }
-                });
-            }
+            // 全局后台任务：推送调度 / Git 提交收集 / 做梦沉淀 / 启动自动监听（详见 background.rs）
+            background::spawn_push_scheduler(app.handle().clone());
+            background::spawn_git_collector(app.handle().clone());
+            background::spawn_dream_scheduler(app.handle().clone());
 
             // 正常启动（非开机自启）时显示主窗口。
             // 开机自启时通过 --hidden 参数静默启动到系统托盘。
@@ -354,36 +235,8 @@ fn main() {
                 }
             }
 
-            // 启动时检查 auto_start：开启且 LLM 已配置则自动启用监听。
-            // 延迟 1.5s 让 webview 先初始化，避免 watch-event 早于前端订阅丢事件。
-            let app_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
-                let state: tauri::State<'_, crate::state::AppStateHandle> = app_handle.state();
-                let (auto_start, has_vision, auto_launch_on_boot) = {
-                    let cfg = state.config.lock();
-                    let has = cfg
-                        .llm
-                        .resolve_vision()
-                        .map(|p| !p.api_key.trim().is_empty())
-                        .unwrap_or(false);
-                    (
-                        cfg.screenshot.auto_start,
-                        has,
-                        cfg.app.auto_launch_on_boot,
-                    )
-                };
-                // 把系统级开机自启状态同步为配置期望值
-                commands::sync_autostart(&app_handle, auto_launch_on_boot);
-                if auto_start && has_vision {
-                    tracing::info!("auto_start 已启用，自动开始监听");
-                    if let Err(e) = commands::launch_watch(&app_handle, &state) {
-                        tracing::warn!("auto_start 启动失败: {}", e);
-                    }
-                } else if auto_start && !has_vision {
-                    tracing::warn!("auto_start 已启用但默认视觉 provider 未配置，跳过");
-                }
-            });
+            // 启动时检查 auto_start：开启且 LLM 已配置则自动启用监听（详见 background.rs）
+            background::spawn_autostart_check(app.handle().clone());
 
             Ok(())
         })

@@ -37,6 +37,10 @@ export function useWatchStatus() {
             next.intervalSeconds = evt.interval_seconds;
             next.lastError = undefined;
             break;
+          case 'captured':
+            // 分析成功即清除上一次失败的横幅，避免展示陈旧错误
+            next.lastError = undefined;
+            break;
           case 'stopped':
             next.running = false;
             break;

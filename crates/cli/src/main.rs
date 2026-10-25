@@ -411,7 +411,7 @@ async fn cmd_capture(json: bool) -> Result<()> {
         .map_err(|e| anyhow!("截图任务异常: {e}"))??;
 
     // 视觉分析
-    let raw = match llm.analyze_image(&path, VISION_PROMPT).await {
+    let raw = match llm.analyze_image(&path, "", VISION_PROMPT).await {
         Ok(s) => s,
         Err(e) => {
             // 失败时清理文件

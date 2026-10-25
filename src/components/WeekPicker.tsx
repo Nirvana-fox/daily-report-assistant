@@ -102,7 +102,7 @@ export default function WeekPicker({
         />
 
         {open && (
-          <div className="absolute z-30 mt-1 left-0 w-[300px] bg-white border border-border rounded-card shadow-soft p-2 animate-pop">
+          <div className="absolute z-30 mt-1 left-0 w-[300px] bg-card border border-border rounded-card shadow-soft p-2 animate-pop">
             {/* 月份导航 */}
             <div className="flex items-center justify-between px-1 py-1">
               <button

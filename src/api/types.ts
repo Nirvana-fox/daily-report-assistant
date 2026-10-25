@@ -22,6 +22,17 @@ export interface LlmConfig {
   default_local_vision_id: string;
   /** true 时截图分析走本地视觉模型（热键 Ctrl+Alt+L 可切换） */
   use_local_vision: boolean;
+  /** OCR 两段式管线的 provider id（如智谱 glm-ocr）；空 = 不启用 */
+  ocr_provider_id: string;
+}
+
+export interface PrivacyConfig {
+  /** 本地二次脱敏开关（默认开启） */
+  enabled: boolean;
+  /** 注入 AI 提示词的自定义脱敏规则（最高优先级段） */
+  extra_prompt_rules: string;
+  /** 硬脱敏词表：入库前本地替换为「＊＊」 */
+  mask_words: string[];
 }
 
 export interface ScreenshotConfig {
@@ -34,6 +45,10 @@ export interface ScreenshotConfig {
   idle_skip_seconds: number;
   /** 画面与上一张几乎一致时跳过视觉分析（省 token） */
   dedup_screenshots: boolean;
+  /** 排除清单：应用名/窗口标题命中（子串、大小写不敏感）时不记录 */
+  exclude_apps: string[];
+  /** 不记录时段（支持跨天，如 22:00-08:00） */
+  quiet_periods: { start: string; end: string }[];
 }
 
 export interface ReportConfig {
@@ -122,6 +137,7 @@ export interface Config {
   profile: ProfileConfig;
   push: PushConfig;
   account: AccountConfig;
+  privacy: PrivacyConfig;
   db_path: string;
 }
 
@@ -371,4 +387,69 @@ export interface HeatMapRecord {
   total_records: number;
   top_category?: string;
   active_period?: string;
+}
+
+// ===== AI 个人档案（长期记忆） =====
+
+export interface ProfileField {
+  id: number;
+  group_name: string;
+  key: string;
+  value: string;
+  hidden: boolean;
+  /** confirmed | pending */
+  confidence: string;
+  valid_from: string | null;
+  valid_to: string | null;
+  source_refs: { type: string; id?: string }[];
+  updated_at: string;
+}
+
+export interface ProjectDossier {
+  id: number;
+  name: string;
+  /** active | completed */
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+  role: string;
+  goals: string;
+  results: string;
+  outputs: string;
+  notes: string;
+  commit_count: number;
+  related_refs: unknown[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProfileSuggestion {
+  id: number;
+  /** add | update | expire | project_note */
+  kind: string;
+  group_name: string;
+  key: string;
+  old_value: string;
+  new_value: string;
+  rationale: string;
+  source_refs: unknown[];
+  /** pending | accepted | dismissed */
+  status: string;
+  created_at: string;
+}
+
+export interface DreamLogRow {
+  id: number;
+  ran_at: string;
+  merged: number;
+  summarized: number;
+  archived: number;
+  detail: string;
+}
+
+export interface DreamStats {
+  merged: number;
+  summarized: number;
+  archived: number;
+  detail: string;
 }

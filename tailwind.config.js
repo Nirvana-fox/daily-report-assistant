@@ -1,42 +1,50 @@
 /** @type {import('tailwindcss').Config} */
-// 像素风清新绿主题
+// 像素风 · 中国传统色多主题
+// 颜色全部指向 CSS 变量（index.css 中按 data-accent × data-theme 定义），
+// 支持 6 套主题（竹青/铜绿/靛青/黛紫/海棠红/秋香）× 亮暗 × 中性底染色。
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
-        // 主色：清新绿
+        // 主色：锚点色经 --p-*-rgb 三元组注入，支持 /alpha
         primary: {
-          DEFAULT: '#7BC47F',
-          50: '#F0F9F1',
-          100: '#E1F2E3',
-          200: '#C6E5C9',
-          300: '#A8D6AC',
-          400: '#8FC893',
-          500: '#7BC47F',
-          600: '#5DAE63',
-          700: '#4A8F50',
-          800: '#3A7140',
-          900: '#2C5532',
+          DEFAULT: 'rgb(var(--p-rgb) / <alpha-value>)',
+          50: 'var(--c-soft)',
+          100: 'var(--c-soft)',
+          200: 'var(--c-soft)',
+          300: 'rgb(var(--p-rgb) / 0.55)',
+          400: 'rgb(var(--p-rgb) / 0.75)',
+          500: 'rgb(var(--p-rgb) / <alpha-value>)',
+          600: 'rgb(var(--p-deep-rgb) / <alpha-value>)',
+          700: 'rgb(var(--p-text-rgb) / <alpha-value>)',
+          800: 'rgb(var(--p-text-rgb) / <alpha-value>)',
+          900: 'rgb(var(--p-text-rgb) / <alpha-value>)',
         },
-        // 强调色：粉，少量点缀
+        // 强调色：粉，少量点缀（跨主题固定）
         accent: {
           DEFAULT: '#FF8FA3',
           50: '#FFF1F4',
           100: '#FFE4EA',
           500: '#FF8FA3',
           600: '#E97388',
+          700: '#C75A6E',
+          800: '#A3455A',
         },
         ink: {
-          DEFAULT: '#2F3E2F', // 文字主
-          soft: '#3F523F',
+          DEFAULT: 'var(--c-ink)',
+          soft: 'var(--c-ink)',
         },
-        ink2: '#6B8472', // 文字副
-        bg: '#F5F9F5', // 浅绿白背景
-        canvas: '#F5F9F5', // 兼容旧用法
-        card: '#FFFFFF',
-        border: '#D7E5D8',
-        muted: '#6B8472',
+        // 副文字 / 次次级文字（需支持 /alpha）
+        ink2: 'rgb(var(--ink2-rgb) / <alpha-value>)',
+        ink3: 'var(--c-ink3)',
+        // 背景 / 卡片 / 边框 / 轨道（bg 为 color-mix 染色结果，不支持 /alpha）
+        bg: 'var(--c-bg)',
+        bg2: 'var(--c-bg2)',
+        canvas: 'var(--c-bg)', // 兼容旧用法
+        card: 'var(--c-card)',
+        border: 'var(--c-border)',
+        muted: 'rgb(var(--ink2-rgb) / <alpha-value>)',
       },
       fontFamily: {
         sans: [
@@ -49,8 +57,6 @@ export default {
           'sans-serif',
         ],
         mono: ['"JetBrains Mono"', '"Fira Code"', 'Consolas', 'Menlo', 'monospace'],
-        // 像素风字体（用于强调标识；正文仍用 sans）
-        pixel: ['"Press Start 2P"', '"VT323"', 'monospace'],
       },
       borderRadius: {
         // 像素风偏方一点
@@ -58,10 +64,10 @@ export default {
         pix: '4px',
       },
       boxShadow: {
-        card: '0 1px 0 0 rgb(47 62 47 / 0.04), 0 1px 3px rgb(47 62 47 / 0.06)',
-        soft: '0 4px 12px rgb(47 62 47 / 0.06)',
-        pix: '2px 2px 0 0 rgb(47 62 47 / 0.08)',
-        pixhover: '0 3px 0 0 rgb(93 174 99 / 0.18), 2px 2px 0 0 rgb(47 62 47 / 0.06)',
+        card: 'var(--shadow-card)',
+        soft: 'var(--shadow-soft)',
+        pix: 'var(--shadow-pix)',
+        pixhover: 'var(--shadow-pixhover)',
       },
       animation: {
         pop: 'pop 0.14s ease-out',

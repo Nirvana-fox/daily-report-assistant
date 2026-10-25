@@ -3,7 +3,7 @@
   <h1>日报助手 · Daily Report Assistant</h1>
   <p><strong>AI 驱动的工作日报 / 周报 / 月报生成工具</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/version-1.7.0-blue" />
+    <img src="https://img.shields.io/badge/version-1.8.0-blue" />
     <img src="https://img.shields.io/badge/Rust-1.94+-CE422B?logo=rust&logoColor=white" />
     <img src="https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white" />
     <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" />
@@ -19,6 +19,10 @@
 一个跑在你电脑上的小工具：定时给屏幕拍照，结合**前台应用 / 窗口标题**让 AI 识别你在做什么，自动把一天 / 一周 / 一月做了什么写成日报。数据全部存在本地，截图分析完默认即删。
 
 功能路子参考了 [小黑日报助手](https://xiaohei.qitingai.com/) 的"截图记录 + AI 总结"，并基于开源项目 [ethanfly/report-assistant](https://github.com/ethanfly/report-assistant)（小T日报助手，MIT）二次开发，补齐并对齐了以下能力。
+
+## 📖 使用手册
+
+完整的操作说明、设置项解释与常见报错对照表见 [docs/使用手册.md](docs/使用手册.md)（应用内「侧边栏 → 使用手册」为同一份内容的页面版）。
 
 ## 🎯 特性
 
@@ -39,7 +43,9 @@
 - 🌐 **NAS 数据联动**：工作记录 + 截图原图增量推送到 NAS；截图在 NAS 上按日期/设备单独存放；断网自动补推、幂等去重
 - 🖼️ **截图回看**：时间线里一键查看当时的屏幕
 - 🖥️ **多显示器** / 🌙 **空闲跳过** / 📌 **系统托盘常驻** / ⌨️ **全局待办热键**（Alt+Space）
-- 🎨 像素风 UI + 清新绿主题
+- 🎨 **像素风 UI**：6 套中国传统色主题（竹青 / 铜绿 / 靛青 / 黛紫 / 海棠红 / 秋香）× 亮暗模式 × 中性底随主题染色
+- 🧠 **AI 个人档案（长期记忆）**：档案字段 / 项目档案 / 建议队列三层记忆；夜间"做梦"复盘近 7 天记录产出建议，改后采纳才写入——AI 回答依据你确认过的事实，少幻觉
+- 🗂️ **页面新信息架构**：统计页（热力图+应用使用）、报告页（生成+历史）合并；侧栏精简为 8 个可展开图标入口
 
 ## 📥 安装
 

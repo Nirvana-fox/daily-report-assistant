@@ -32,6 +32,7 @@ pub mod logging;
 pub mod nas;
 pub mod paths;
 pub mod privacy;
+pub mod profile;
 pub mod push;
 pub mod screenshot;
 pub mod storage;

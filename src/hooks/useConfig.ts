@@ -9,6 +9,7 @@ const DEFAULT_CONFIG: Config = {
     default_vision_id: '',
     default_local_vision_id: '',
     use_local_vision: false,
+    ocr_provider_id: '',
   },
   screenshot: {
     enabled: true,
@@ -19,6 +20,8 @@ const DEFAULT_CONFIG: Config = {
     monitor_index: 0,
     idle_skip_seconds: 120,
     dedup_screenshots: true,
+    exclude_apps: [],
+    quiet_periods: [],
   },
   report: {
     default_template: 'standard',
@@ -26,6 +29,11 @@ const DEFAULT_CONFIG: Config = {
     user_name: '',
     team: '',
     custom_instructions: '',
+  },
+  privacy: {
+    enabled: true,
+    extra_prompt_rules: '',
+    mask_words: [],
   },
   profile: {
     display_name: '',

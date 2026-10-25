@@ -103,6 +103,39 @@ pub fn sanitize_all(inputs: &mut [String]) {
     }
 }
 
+/// 用户自定义硬脱敏：把词表中的每个词（大小写不敏感）替换为「＊＊」。
+/// 与正则规则不同，这是确定性替换，不依赖模型自觉，也不受 LLM 输出质量影响。
+pub fn mask_words_in(input: &str, words: &[String]) -> String {
+    let mut text = input.to_string();
+    for w in words {
+        let w = w.trim();
+        if w.is_empty() {
+            continue;
+        }
+        if let Ok(re) = Regex::new(&format!("(?i){}", regex::escape(w))) {
+            text = re.replace_all(&text, "＊＊").to_string();
+        }
+    }
+    text
+}
+
+/// 正则脱敏 + 自定义词表，一条入口。
+pub fn sanitize_with(input: &str, words: &[String]) -> String {
+    let text = sanitize(input);
+    if words.is_empty() {
+        text
+    } else {
+        mask_words_in(&text, words)
+    }
+}
+
+/// [`sanitize_with`] 的多段版本（原地修改）。
+pub fn sanitize_all_with(inputs: &mut [String], words: &[String]) {
+    for s in inputs.iter_mut() {
+        *s = sanitize_with(s, words);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
