@@ -115,6 +115,8 @@ const DEFAULT_CONFIG: Config = {
   shortcuts: {
     local_llm_toggle: 'Ctrl+Alt+L',
   },
+  archive: { dream_enabled: true, dream_time: '23:40' },
+  team: { base_url: '', token: '', team_name: '', member_name: '' },
   db_path: '',
 };
 

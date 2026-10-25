@@ -138,7 +138,21 @@ export interface Config {
   push: PushConfig;
   account: AccountConfig;
   privacy: PrivacyConfig;
+  archive: ArchiveConfig;
+  team: TeamConfig;
   db_path: string;
+}
+
+export interface ArchiveConfig {
+  dream_enabled: boolean;
+  dream_time: string;
+}
+
+export interface TeamConfig {
+  base_url: string;
+  token: string;
+  team_name: string;
+  member_name: string;
 }
 
 export interface WorkLog {

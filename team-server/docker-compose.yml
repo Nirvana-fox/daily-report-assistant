@@ -1,0 +1,11 @@
+services:
+  report-assistant-team:
+    build: .
+    container_name: report-assistant-team
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      - DATA_DIR=/data
+    volumes:
+      - /volume1/docker/report-assistant-team:/data

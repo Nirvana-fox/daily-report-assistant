@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Timeline from './pages/Timeline';
 import ReportsHub from './pages/ReportsHub';
 import Stats from './pages/Stats';
+import Team from './pages/Team';
 import Settings from './pages/Settings';
 import Manual from './pages/Manual';
 import Todos from './pages/Todos';
@@ -113,6 +114,7 @@ function RoutesWithFade() {
         <Route path="/plan-master" element={<PlanMaster />} />
         <Route path="/reports" element={<ReportsHub />} />
         <Route path="/stats" element={<Stats />} />
+        <Route path="/team" element={<Team />} />
         <Route path="/todos" element={<Todos />} />
         <Route path="/timeline" element={<Timeline />} />
         <Route path="/settings" element={<Settings />} />

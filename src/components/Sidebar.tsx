@@ -12,17 +12,19 @@ import {
   BarChart3,
   CalendarDays,
   Brain,
+  Users,
 } from 'lucide-react';
 import { useWatchStatus } from '../hooks/useWatchStatus';
 import Avatar from './Avatar';
 import clsx from 'clsx';
 
-/** 新信息架构：侧栏 8 个入口（统计=热力图+应用使用，报告=生成+历史） */
+/** 新信息架构：侧栏 9 个入口（统计=热力图+应用使用，报告=生成+历史；团队=企业版功能） */
 const items = [
   { to: '/home', label: '首页', icon: HomeIcon },
   { to: '/timeline', label: '时间线', icon: Clock },
   { to: '/reports', label: '报告', icon: FileText },
   { to: '/stats', label: '统计', icon: BarChart3 },
+  { to: '/team', label: '团队', icon: Users },
   { to: '/todos', label: '待办', icon: ListTodo },
   { to: '/plan-master', label: 'AI 助手', icon: Brain },
   { to: '/plan', label: '规划', icon: CalendarDays, sep: true },

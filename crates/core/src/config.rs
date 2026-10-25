@@ -975,3 +975,20 @@ impl Default for ArchiveConfig {
 fn default_dream_time() -> String {
     "23:40".to_string()
 }
+
+/// 「团队」设置：企业版 team-server 连接信息。
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct TeamConfig {
+    /// 服务端地址，如 http://192.168.1.10:8090
+    #[serde(default)]
+    pub base_url: String,
+    /// 成员 Token（创建/加入团队后由服务端签发）
+    #[serde(default)]
+    pub token: String,
+    /// 团队名（加入成功后本地记录）
+    #[serde(default)]
+    pub team_name: String,
+    /// 我的成员名
+    #[serde(default)]
+    pub member_name: String,
+}
