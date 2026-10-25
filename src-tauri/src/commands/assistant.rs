@@ -279,6 +279,18 @@ pub async fn assistant_chat(
         system_prompt.push_str(&context);
     }
 
+    // 注入 AI 个人档案（已确认、未隐藏、未过期的长期事实）
+    {
+        let storage4 = state.storage.clone();
+        let archive_block = tokio::task::spawn_blocking(move || storage4.profile_prompt_block())
+            .await
+            .map_err(|e| e.to_string())?;
+        if !archive_block.is_empty() {
+            system_prompt.push_str("\n\n");
+            system_prompt.push_str(&archive_block);
+        }
+    }
+
     let mut messages = vec![llm::ChatMessage::text("system", system_prompt)];
     messages.extend(history);
 

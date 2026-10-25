@@ -388,3 +388,68 @@ export interface HeatMapRecord {
   top_category?: string;
   active_period?: string;
 }
+
+// ===== AI 个人档案（长期记忆） =====
+
+export interface ProfileField {
+  id: number;
+  group_name: string;
+  key: string;
+  value: string;
+  hidden: boolean;
+  /** confirmed | pending */
+  confidence: string;
+  valid_from: string | null;
+  valid_to: string | null;
+  source_refs: { type: string; id?: string }[];
+  updated_at: string;
+}
+
+export interface ProjectDossier {
+  id: number;
+  name: string;
+  /** active | completed */
+  status: string;
+  start_date: string | null;
+  end_date: string | null;
+  role: string;
+  goals: string;
+  results: string;
+  outputs: string;
+  notes: string;
+  commit_count: number;
+  related_refs: unknown[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProfileSuggestion {
+  id: number;
+  /** add | update | expire | project_note */
+  kind: string;
+  group_name: string;
+  key: string;
+  old_value: string;
+  new_value: string;
+  rationale: string;
+  source_refs: unknown[];
+  /** pending | accepted | dismissed */
+  status: string;
+  created_at: string;
+}
+
+export interface DreamLogRow {
+  id: number;
+  ran_at: string;
+  merged: number;
+  summarized: number;
+  archived: number;
+  detail: string;
+}
+
+export interface DreamStats {
+  merged: number;
+  summarized: number;
+  archived: number;
+  detail: string;
+}
