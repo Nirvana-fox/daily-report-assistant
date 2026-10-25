@@ -229,7 +229,7 @@ export default function TodoPopup() {
       {/* 标题栏 */}
       <div
         data-tauri-drag-region
-        className="h-[34px] flex items-center justify-between px-3 border-b border-border bg-white shrink-0"
+        className="h-[34px] flex items-center justify-between px-3 border-b border-border bg-card shrink-0"
       >
         <div
           data-tauri-drag-region
@@ -254,12 +254,12 @@ export default function TodoPopup() {
         <div className="flex items-center justify-between">
           <div className="text-[11px] text-ink2">
             支持 Markdown ·{' '}
-            <kbd className="px-1 py-0.5 rounded bg-white border border-border font-mono text-[10px]">
+            <kbd className="px-1 py-0.5 rounded bg-card border border-border font-mono text-[10px]">
               Ctrl+Enter
             </kbd>{' '}
             添加
           </div>
-          <div className="flex items-center gap-0.5 bg-white border border-border rounded-pix p-0.5">
+          <div className="flex items-center gap-0.5 bg-card border border-border rounded-pix p-0.5">
             <button
               type="button"
               onClick={() => setComposerMode('edit')}
@@ -309,7 +309,7 @@ export default function TodoPopup() {
             className="input-base resize-none font-mono text-[13px] leading-relaxed !py-2"
           />
         ) : (
-          <div className="min-h-[96px] max-h-[160px] overflow-y-auto rounded-pix border border-border bg-white px-3 py-2">
+          <div className="min-h-[96px] max-h-[160px] overflow-y-auto rounded-pix border border-border bg-card px-3 py-2">
             {draft.trim() ? (
               <MarkdownView content={draft} className="!text-[13px]" />
             ) : (
@@ -336,7 +336,7 @@ export default function TodoPopup() {
       </div>
 
       {/* 过滤器 */}
-      <div className="px-3 py-2 flex items-center gap-1.5 shrink-0 border-b border-border bg-white">
+      <div className="px-3 py-2 flex items-center gap-1.5 shrink-0 border-b border-border bg-card">
         {(
           [
             { key: 'pending' as const, label: '未完成' },
@@ -352,7 +352,7 @@ export default function TodoPopup() {
               'px-2.5 py-1 rounded-pix text-[11px] border transition-colors',
               filter === t.key
                 ? 'bg-primary-50 border-primary-200 text-primary-800 font-medium'
-                : 'bg-white border-border text-ink2 hover:bg-bg'
+                : 'bg-card border-border text-ink2 hover:bg-bg'
             )}
           >
             {t.label}
@@ -392,7 +392,7 @@ export default function TodoPopup() {
                     'mt-0.5 shrink-0 w-6 h-6 rounded-pix flex items-center justify-center border transition-colors',
                     done
                       ? 'bg-primary-50 border-primary-200 text-primary-700'
-                      : 'bg-white border-border text-ink2 hover:border-primary-400 hover:text-primary-700 hover:bg-primary-50'
+                      : 'bg-card border-border text-ink2 hover:border-primary-400 hover:text-primary-700 hover:bg-primary-50'
                   )}
                   title={done ? '已完成' : '完成并写入时间线'}
                 >

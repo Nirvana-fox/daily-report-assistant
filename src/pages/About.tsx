@@ -12,15 +12,15 @@ export default function About() {
 
       <Card title="版本信息" hoverable={false}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-bg/50 rounded-pix p-3 border border-border">
+          <div className="bg-bg-soft rounded-pix p-3 border border-border">
             <div className="text-xs text-ink2">版本号</div>
             <div className="text-lg font-semibold text-ink mt-1">v1.0.0</div>
           </div>
-          <div className="bg-bg/50 rounded-pix p-3 border border-border">
+          <div className="bg-bg-soft rounded-pix p-3 border border-border">
             <div className="text-xs text-ink2">更新日期</div>
             <div className="text-lg font-semibold text-ink mt-1">2026-07-17</div>
           </div>
-          <div className="bg-bg/50 rounded-pix p-3 border border-border">
+          <div className="bg-bg-soft rounded-pix p-3 border border-border">
             <div className="text-xs text-ink2">框架版本</div>
             <div className="text-lg font-semibold text-ink mt-1">Tauri v2</div>
           </div>
@@ -49,7 +49,7 @@ export default function About() {
         <div className="space-y-4">
           <div>
             <div className="text-xs font-medium text-primary-700 mb-2">前端架构</div>
-            <div className="text-sm text-ink bg-bg/50 rounded-pix p-3 border border-border font-mono text-[11px]">
+            <div className="text-sm text-ink bg-bg-soft rounded-pix p-3 border border-border font-mono text-[11px]">
               <pre className="whitespace-pre-wrap">src/
 ├── components/      # UI 组件（TitleBar, Sidebar, Card, Button 等）
 ├── pages/           # 页面（Home, Todos, Timeline, Reports, Settings, About）
@@ -62,7 +62,7 @@ export default function About() {
           </div>
           <div>
             <div className="text-xs font-medium text-primary-700 mb-2">后端架构</div>
-            <div className="text-sm text-ink bg-bg/50 rounded-pix p-3 border border-border font-mono text-[11px]">
+            <div className="text-sm text-ink bg-bg-soft rounded-pix p-3 border border-border font-mono text-[11px]">
               <pre className="whitespace-pre-wrap">src-tauri/
 ├── src/
 │   ├── main.rs      # 应用入口
@@ -102,7 +102,7 @@ export default function About() {
           </div>
           <div className="mt-4">
             <div className="text-xs font-medium text-primary-700 mb-2">核心数据流向</div>
-            <div className="text-sm text-ink bg-bg/50 rounded-pix p-4 border border-border">
+            <div className="text-sm text-ink bg-bg-soft rounded-pix p-4 border border-border">
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <div className="px-3 py-2 bg-primary-100 text-primary-800 rounded-pix text-xs font-medium">待办输入</div>
                 <span className="text-primary-400">→</span>
@@ -123,19 +123,19 @@ export default function About() {
 
       <Card title="技术栈" hoverable={false}>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-bg/50 rounded-pix p-3 border border-border text-center">
+          <div className="bg-bg-soft rounded-pix p-3 border border-border text-center">
             <div className="text-sm font-medium text-ink">前端</div>
             <div className="text-xs text-ink2 mt-1">React 18 + TypeScript</div>
           </div>
-          <div className="bg-bg/50 rounded-pix p-3 border border-border text-center">
+          <div className="bg-bg-soft rounded-pix p-3 border border-border text-center">
             <div className="text-sm font-medium text-ink">框架</div>
             <div className="text-xs text-ink2 mt-1">Tauri v2</div>
           </div>
-          <div className="bg-bg/50 rounded-pix p-3 border border-border text-center">
+          <div className="bg-bg-soft rounded-pix p-3 border border-border text-center">
             <div className="text-sm font-medium text-ink">样式</div>
             <div className="text-xs text-ink2 mt-1">Tailwind CSS 3</div>
           </div>
-          <div className="bg-bg/50 rounded-pix p-3 border border-border text-center">
+          <div className="bg-bg-soft rounded-pix p-3 border border-border text-center">
             <div className="text-sm font-medium text-ink">后端</div>
             <div className="text-xs text-ink2 mt-1">Rust</div>
           </div>

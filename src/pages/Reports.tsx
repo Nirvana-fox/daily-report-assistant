@@ -430,13 +430,13 @@ export default function Reports() {
                   <div className="space-y-2">
                     <div>
                       <label className="text-[11px] text-ink2 mb-1 block">系统提示词</label>
-                      <p className="text-xs text-ink bg-white rounded-pix p-2 border border-border max-h-[80px] overflow-auto">
+                      <p className="text-xs text-ink bg-card rounded-pix p-2 border border-border max-h-[80px] overflow-auto">
                         {t.system_prompt || '（空）'}
                       </p>
                     </div>
                     <div>
                       <label className="text-[11px] text-ink2 mb-1 block">用户提示词提示</label>
-                      <p className="text-xs text-ink bg-white rounded-pix p-2 border border-border">
+                      <p className="text-xs text-ink bg-card rounded-pix p-2 border border-border">
                         {t.user_prompt_hint || '（空）'}
                       </p>
                     </div>

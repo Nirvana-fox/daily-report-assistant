@@ -464,7 +464,7 @@ export default function PlanMaster() {
                         <div className="mt-3 space-y-2 text-left">
                           <div className="text-xs text-ink2 font-medium">生成的计划：</div>
                           {msg.tasks.map((task) => (
-                            <div key={task.id} className="bg-bg/50 rounded-pix p-2 text-xs">
+                            <div key={task.id} className="bg-bg-soft rounded-pix p-2 text-xs">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="font-medium text-ink">{task.title}</span>
                                 <span
@@ -590,7 +590,7 @@ export default function PlanMaster() {
                 tasks.map((task) => (
                   <div
                     key={task.id}
-                    className="bg-bg/50 rounded-pix p-2.5 text-xs hover:bg-bg transition-colors"
+                    className="bg-bg-soft rounded-pix p-2.5 text-xs hover:bg-bg transition-colors"
                   >
                     <div className="flex items-start justify-between mb-1">
                       <span className="font-medium text-ink truncate flex-1">{task.title}</span>
@@ -642,7 +642,7 @@ export default function PlanMaster() {
               </div>
               <div className="space-y-2 max-h-[300px] overflow-auto">
                 {pendingTasks.map((task) => (
-                  <div key={task.id} className="bg-bg/50 rounded-pix p-2 text-xs">
+                  <div key={task.id} className="bg-bg-soft rounded-pix p-2 text-xs">
                     <div className="font-medium text-ink">{task.title}</div>
                     <div className="flex items-center gap-2 text-ink2 mt-1">
                       <span>
@@ -686,7 +686,7 @@ export default function PlanMaster() {
             </div>
             <div className="p-4">
               {tableFileName && (
-                <div className="text-xs text-ink2 mb-3 bg-bg/50 rounded-pix px-3 py-2">
+                <div className="text-xs text-ink2 mb-3 bg-bg-soft rounded-pix px-3 py-2">
                   已加载文件：{tableFileName}
                 </div>
               )}

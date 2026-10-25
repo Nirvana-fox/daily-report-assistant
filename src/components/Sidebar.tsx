@@ -41,7 +41,7 @@ export default function Sidebar() {
   const { status } = useWatchStatus();
 
   return (
-    <aside className="flex flex-col w-[220px] shrink-0 bg-white border-r border-border">
+    <aside className="flex flex-col w-[220px] shrink-0 bg-card border-r border-border">
       {/* 顶部 logo + 标题 */}
       <div className="px-4 py-4 border-b border-border">
         <div className="flex items-center gap-3">
@@ -99,7 +99,7 @@ export default function Sidebar() {
       </nav>
 
       {/* 底部状态 */}
-      <div className="px-4 py-3 border-t border-border bg-bg/50">
+      <div className="px-4 py-3 border-t border-border bg-bg-soft">
         <div className="flex items-center gap-2 text-xs">
           <span
             className={clsx(

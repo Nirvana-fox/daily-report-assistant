@@ -326,7 +326,7 @@ export default function Plan() {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-border bg-bg/50">
+            <tr className="border-b border-border bg-bg-soft">
               <th className="px-4 py-3 text-left text-xs font-medium text-ink2 w-12">优先级</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-ink2 w-32">时间</th>
               <th className="px-4 py-3 text-left text-xs font-medium text-ink2">标题</th>
@@ -592,7 +592,7 @@ export default function Plan() {
                 <div
                   key={goal.id}
                   onClick={() => openTaskDetail(goal)}
-                  className="px-3 py-1.5 bg-white border border-primary-200 rounded-pix text-xs text-ink cursor-pointer hover:border-primary-400 transition-colors"
+                  className="px-3 py-1.5 bg-card border border-primary-200 rounded-pix text-xs text-ink cursor-pointer hover:border-primary-400 transition-colors"
                 >
                   {goal.title}
                   <span className="ml-1 text-primary-600">→</span>
@@ -615,7 +615,7 @@ export default function Plan() {
             return (
               <Card key={weekIndex} noPadding className="overflow-hidden">
                 <div
-                  className="flex items-center justify-between px-4 py-3 bg-bg/50 cursor-pointer hover:bg-bg transition-colors"
+                  className="flex items-center justify-between px-4 py-3 bg-bg-soft cursor-pointer hover:bg-bg transition-colors"
                   onClick={() => handleWeekClick(weekStart)}
                 >
                   <div className="flex items-center gap-3">
@@ -804,7 +804,7 @@ export default function Plan() {
                   </div>
                 </div>
                 {selectedMonthTask.parent_id && (
-                  <div className="flex items-center gap-2 p-2 bg-bg/50 rounded-pix">
+                  <div className="flex items-center gap-2 p-2 bg-bg-soft rounded-pix">
                     <ArrowUp size={14} className="text-ink2" />
                     <span className="text-xs text-ink2">所属父任务：{tasks.find(t => t.id === selectedMonthTask?.parent_id)?.title}</span>
                   </div>
@@ -903,7 +903,7 @@ export default function Plan() {
                   <div
                     key={task.id}
                     onClick={() => openYearTaskDetail(task)}
-                    className="bg-bg/50 rounded-pix p-4 cursor-pointer hover:bg-bg transition-colors border border-border"
+                    className="bg-bg-soft rounded-pix p-4 cursor-pointer hover:bg-bg transition-colors border border-border"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -987,7 +987,7 @@ export default function Plan() {
                             <div
                               key={task.id}
                               onClick={() => openYearTaskDetail(task)}
-                              className="bg-bg/50 rounded-pix p-2.5 cursor-pointer hover:bg-bg transition-colors"
+                              className="bg-bg-soft rounded-pix p-2.5 cursor-pointer hover:bg-bg transition-colors"
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
@@ -1118,7 +1118,7 @@ export default function Plan() {
                         const childProgress = grandChildren.length > 0 ? calculateAggregatedProgress(child.id) : child.progress;
                         
                         return (
-                          <div key={child.id} className="flex items-center justify-between text-xs p-2 bg-bg/50 rounded-pix">
+                          <div key={child.id} className="flex items-center justify-between text-xs p-2 bg-bg-soft rounded-pix">
                             <div className="flex-1">
                               <span className="text-ink">{dayjs(child.start_date).format('MM月')}: {child.title}</span>
                               {grandChildren.length > 0 && (
@@ -1383,7 +1383,7 @@ export default function Plan() {
                 </Select>
               </div>
               {editingTask && editingTask.parent_id && (
-                <div className="flex items-center gap-2 p-2 bg-bg/50 rounded-pix">
+                <div className="flex items-center gap-2 p-2 bg-bg-soft rounded-pix">
                   <ArrowUp size={14} className="text-ink2" />
                   <span className="text-xs text-ink2">所属父任务：{tasks.find(t => t.id === editingTask?.parent_id)?.title}</span>
                 </div>

@@ -3,7 +3,11 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import TodoPopup from './pages/TodoPopup';
+import { applyTheme, getStoredTheme } from './hooks/useTheme';
 import './index.css';
+
+// 渲染前应用主题（data-theme / data-accent / data-tint），避免首帧闪色
+applyTheme(getStoredTheme());
 
 /**
  * 根据 URL ?window= 选择入口：

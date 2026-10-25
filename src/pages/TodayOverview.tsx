@@ -381,7 +381,7 @@ export default function TodayOverview() {
                   <div className="text-sm font-medium text-ink mb-2">{hour}:00</div>
                   <div className="space-y-2">
                     {items.map((item) => (
-                      <div key={item.id} className="bg-bg/50 rounded-pix p-3 border border-border">
+                      <div key={item.id} className="bg-bg-soft rounded-pix p-3 border border-border">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="px-2 py-0.5 text-[11px] bg-primary-50 text-primary-700 rounded-pix">
                             {item.category || '其他'}

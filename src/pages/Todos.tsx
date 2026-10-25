@@ -174,7 +174,7 @@ export default function Todos() {
           <h1 className="text-2xl font-semibold text-ink text-pix">待办</h1>
           <p className="text-sm text-ink2 mt-1">
             支持 Markdown · 完成后写入时间线 · 全局{' '}
-            <kbd className="px-1.5 py-0.5 rounded-pix bg-white border border-border font-mono text-[11px]">
+            <kbd className="px-1.5 py-0.5 rounded-pix bg-card border border-border font-mono text-[11px]">
               Alt+Space
             </kbd>{' '}
             快速唤起
@@ -202,7 +202,7 @@ export default function Todos() {
                 className={clsx(
                   'px-2.5 py-1 rounded-pix text-xs flex items-center gap-1 transition-colors',
                   composerMode === 'edit'
-                    ? 'bg-white text-primary-800 font-medium shadow-pix'
+                    ? 'bg-card text-primary-800 font-medium shadow-pix'
                     : 'text-ink2 hover:text-ink'
                 )}
               >
@@ -214,7 +214,7 @@ export default function Todos() {
                 className={clsx(
                   'px-2.5 py-1 rounded-pix text-xs flex items-center gap-1 transition-colors',
                   composerMode === 'preview'
-                    ? 'bg-white text-primary-800 font-medium shadow-pix'
+                    ? 'bg-card text-primary-800 font-medium shadow-pix'
                     : 'text-ink2 hover:text-ink'
                 )}
               >
@@ -241,7 +241,7 @@ export default function Todos() {
               className="input-base resize-y font-mono text-sm leading-relaxed"
             />
           ) : (
-            <div className="min-h-[112px] rounded-pix border border-border bg-white px-3 py-2">
+            <div className="min-h-[112px] rounded-pix border border-border bg-card px-3 py-2">
               {draft.trim() ? (
                 <MarkdownView content={draft} />
               ) : (
@@ -284,7 +284,7 @@ export default function Todos() {
                 'px-3 py-1.5 rounded-pix text-xs border transition-colors',
                 filter === t.key
                   ? 'bg-primary-50 border-primary-200 text-primary-800 font-medium'
-                  : 'bg-white border-border text-ink2 hover:bg-bg'
+                  : 'bg-card border-border text-ink2 hover:bg-bg'
               )}
             >
               {t.label}
@@ -327,7 +327,7 @@ export default function Todos() {
                       'mt-0.5 shrink-0 w-7 h-7 rounded-pix flex items-center justify-center border transition-colors',
                       done
                         ? 'bg-primary-50 border-primary-200 text-primary-700'
-                        : 'bg-white border-border text-ink2 hover:border-primary-400 hover:text-primary-700 hover:bg-primary-50'
+                        : 'bg-card border-border text-ink2 hover:border-primary-400 hover:text-primary-700 hover:bg-primary-50'
                     )}
                     title={done ? '已完成' : '标记完成（写入时间线）'}
                   >

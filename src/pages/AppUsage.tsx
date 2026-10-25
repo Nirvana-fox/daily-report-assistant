@@ -172,7 +172,7 @@ export default function AppUsage() {
               </thead>
               <tbody>
                 {data.map((item) => (
-                  <tr key={item.app_name} className="border-b border-border last:border-b-0 hover:bg-bg/50">
+                  <tr key={item.app_name} className="border-b border-border last:border-b-0 hover:bg-bg-soft">
                     <td className="py-2 px-3 text-ink">{item.app_name}</td>
                     <td className="py-2 px-3 text-right text-ink font-medium">{formatDuration(item.total_duration_sec)}</td>
                     <td className="py-2 px-3 text-right text-ink2">{((item.total_duration_sec / totalSeconds) * 100).toFixed(1)}%</td>

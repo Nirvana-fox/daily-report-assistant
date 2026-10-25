@@ -940,7 +940,7 @@ export default function Settings() {
               hoverable={false}
             >
               {draft.report.custom_instructions?.trim() ? (
-                <div className="bg-bg/50 border border-border rounded-pix p-3 text-sm text-ink whitespace-pre-wrap mb-3 line-clamp-6">
+                <div className="bg-bg-soft border border-border rounded-pix p-3 text-sm text-ink whitespace-pre-wrap mb-3 line-clamp-6">
                   {draft.report.custom_instructions}
                 </div>
               ) : (
@@ -1839,13 +1839,13 @@ export default function Settings() {
             <div className="space-y-2 mb-3">
               <div className="flex items-start gap-2 text-sm">
                 <span className="text-ink2 w-20 shrink-0">数据库</span>
-                <span className="text-ink font-mono text-xs break-all bg-bg/50 rounded-pix px-2 py-1 flex-1">
+                <span className="text-ink font-mono text-xs break-all bg-bg-soft rounded-pix px-2 py-1 flex-1">
                   {dStats?.db_path || '—'}
                 </span>
               </div>
               <div className="flex items-start gap-2 text-sm">
                 <span className="text-ink2 w-20 shrink-0">截图目录</span>
-                <span className="text-ink font-mono text-xs break-all bg-bg/50 rounded-pix px-2 py-1 flex-1">
+                <span className="text-ink font-mono text-xs break-all bg-bg-soft rounded-pix px-2 py-1 flex-1">
                   {dStats?.screenshot_dir || '—'}
                 </span>
               </div>
@@ -2191,15 +2191,15 @@ export default function Settings() {
           <>
             <Card title="关于" description="版本、介绍与开发者信息" hoverable={false}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <div className="bg-bg/50 rounded-pix p-3 border border-border">
+                <div className="bg-bg-soft rounded-pix p-3 border border-border">
                   <div className="text-xs text-ink2">版本号</div>
                   <div className="text-lg font-semibold text-ink mt-1">v1.7.3</div>
                 </div>
-                <div className="bg-bg/50 rounded-pix p-3 border border-border">
+                <div className="bg-bg-soft rounded-pix p-3 border border-border">
                   <div className="text-xs text-ink2">更新日期</div>
                   <div className="text-lg font-semibold text-ink mt-1">2026-09-19</div>
                 </div>
-                <div className="bg-bg/50 rounded-pix p-3 border border-border">
+                <div className="bg-bg-soft rounded-pix p-3 border border-border">
                   <div className="text-xs text-ink2">框架</div>
                   <div className="text-lg font-semibold text-ink mt-1">Tauri v2</div>
                 </div>
@@ -2414,7 +2414,7 @@ function Stat({
 }) {
   return (
     <div className="rounded-pix border border-border p-3 flex items-center gap-3 bg-bg/40 hover:bg-primary-50/50 transition-colors">
-      <span className="w-8 h-8 rounded-pix bg-white flex items-center justify-center border border-border">
+      <span className="w-8 h-8 rounded-pix bg-card flex items-center justify-center border border-border">
         {icon}
       </span>
       <div className="min-w-0">
