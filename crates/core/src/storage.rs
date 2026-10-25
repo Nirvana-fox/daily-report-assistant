@@ -229,6 +229,64 @@ CREATE TABLE IF NOT EXISTS accounts (
     password_hash TEXT NOT NULL,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+
+-- ==================== AI 个人档案（长期记忆） ====================
+
+CREATE TABLE IF NOT EXISTS profile_fields (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    group_name TEXT NOT NULL,
+    key TEXT NOT NULL,
+    value TEXT NOT NULL,
+    hidden INTEGER NOT NULL DEFAULT 0,
+    confidence TEXT NOT NULL DEFAULT 'confirmed',
+    valid_from TEXT,
+    valid_to TEXT,
+    source_refs TEXT NOT NULL DEFAULT '[]',
+    updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_profile_group_key ON profile_fields(group_name, key);
+
+CREATE TABLE IF NOT EXISTS project_dossiers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    start_date TEXT,
+    end_date TEXT,
+    role TEXT NOT NULL DEFAULT '',
+    goals TEXT NOT NULL DEFAULT '',
+    results TEXT NOT NULL DEFAULT '',
+    outputs TEXT NOT NULL DEFAULT '',
+    notes TEXT NOT NULL DEFAULT '',
+    commit_count INTEGER NOT NULL DEFAULT 0,
+    related_refs TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_project_name ON project_dossiers(name);
+
+CREATE TABLE IF NOT EXISTS profile_suggestions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    group_name TEXT NOT NULL DEFAULT 'custom',
+    key TEXT NOT NULL DEFAULT '',
+    old_value TEXT NOT NULL DEFAULT '',
+    new_value TEXT NOT NULL DEFAULT '',
+    rationale TEXT NOT NULL DEFAULT '',
+    source_refs TEXT NOT NULL DEFAULT '[]',
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL,
+    decided_at TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_profile_suggestions_status ON profile_suggestions(status);
+
+CREATE TABLE IF NOT EXISTS dream_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ran_at TEXT NOT NULL,
+    merged INTEGER NOT NULL DEFAULT 0,
+    summarized INTEGER NOT NULL DEFAULT 0,
+    archived INTEGER NOT NULL DEFAULT 0,
+    detail TEXT NOT NULL DEFAULT ''
+);
 "#;
 
 // ---------------------------------------------------------------------------
@@ -278,6 +336,13 @@ impl Storage {
         }
 
         Ok(Self { pool })
+    }
+
+    /// 取一条池内连接（同 crate 的扩展模块使用，如 profile.rs）。
+    pub(crate) fn conn(
+        &self,
+    ) -> Result<r2d2::PooledConnection<SqliteConnectionManager>> {
+        Ok(self.pool.get()?)
     }
 
     // -------------------- work_logs --------------------

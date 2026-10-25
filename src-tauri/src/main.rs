@@ -186,6 +186,20 @@ fn main() {
             commands::account_login,
             commands::account_change_password,
             commands::account_set_enabled,
+            commands::profile_list_fields,
+            commands::profile_add_field,
+            commands::profile_update_field,
+            commands::profile_set_field_hidden,
+            commands::profile_delete_field,
+            commands::profile_list_projects,
+            commands::profile_save_project,
+            commands::profile_complete_project,
+            commands::profile_delete_project,
+            commands::profile_list_suggestions,
+            commands::profile_decide_suggestion,
+            commands::profile_pending_count,
+            commands::profile_dream_now,
+            commands::profile_dream_log,
         ])
         .setup(|app| {
             tray::setup(app.handle())?;
@@ -198,9 +212,10 @@ fn main() {
                 popup::register_hotkeys(app.handle(), &todo_cfg, Some(&shortcut_cfg));
             }
 
-            // 全局后台任务：推送调度 / Git 提交收集 / 启动自动监听（详见 background.rs）
+            // 全局后台任务：推送调度 / Git 提交收集 / 做梦沉淀 / 启动自动监听（详见 background.rs）
             background::spawn_push_scheduler(app.handle().clone());
             background::spawn_git_collector(app.handle().clone());
+            background::spawn_dream_scheduler(app.handle().clone());
 
             // 正常启动（非开机自启）时显示主窗口。
             // 开机自启时通过 --hidden 参数静默启动到系统托盘。

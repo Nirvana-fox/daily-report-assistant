@@ -816,6 +816,9 @@ pub struct Config {
     /// Git 提交收集。
     #[serde(default)]
     pub git: GitConfig,
+    /// AI 档案（做梦沉淀）。
+    #[serde(default)]
+    pub archive: ArchiveConfig,
     /// 全局功能热键。
     #[serde(default)]
     pub shortcuts: ShortcutConfig,
@@ -948,3 +951,27 @@ pub fn is_ready(cfg: &Config) -> bool {
 
 #[allow(dead_code)]
 fn _unused_error_marker(_: &Error) {}
+
+/// 「AI 档案」设置：做梦沉淀的开关与时间。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ArchiveConfig {
+    /// 夜间做梦开关（复盘近 7 天记录，产出档案建议队列，采纳后才写入档案）
+    #[serde(default = "default_true")]
+    pub dream_enabled: bool,
+    /// 做梦时间（HH:MM，默认 23:40）
+    #[serde(default = "default_dream_time")]
+    pub dream_time: String,
+}
+
+impl Default for ArchiveConfig {
+    fn default() -> Self {
+        Self {
+            dream_enabled: true,
+            dream_time: "23:40".to_string(),
+        }
+    }
+}
+
+fn default_dream_time() -> String {
+    "23:40".to_string()
+}

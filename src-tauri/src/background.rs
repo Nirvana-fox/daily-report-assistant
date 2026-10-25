@@ -146,6 +146,71 @@ pub fn spawn_git_collector(app: AppHandle) {
     });
 }
 
+/// 做梦沉淀调度：每 60s 检查一次；进入配置时间窗口（±30 分钟）且当天未做过梦时，
+/// 复盘近 7 天记录产出档案建议（只进建议队列，采纳由用户决定）。完成后广播 dream-done。
+pub fn spawn_dream_scheduler(app: AppHandle) {
+    tauri::async_runtime::spawn(async move {
+        // 等应用启动稳定
+        tokio::time::sleep(std::time::Duration::from_secs(120)).await;
+        loop {
+            let (enabled, dream_time) = {
+                let state: tauri::State<'_, AppStateHandle> = app.state();
+                let cfg = state.config.lock();
+                (cfg.archive.dream_enabled, cfg.archive.dream_time.clone())
+            };
+
+            if enabled
+                && report_assistant_core::profile::in_dream_window(
+                    chrono::Local::now(),
+                    &dream_time,
+                )
+            {
+                let state: tauri::State<'_, AppStateHandle> = app.state();
+                let already = state.storage.dreamed_today().unwrap_or(false);
+                if !already {
+                    tracing::info!("做梦窗口：开始夜间复盘沉淀");
+                    let cfg = state.config.lock().clone();
+                    if let Some(provider) = cfg.llm.resolve_text() {
+                        if let Ok(llm) = report_assistant_core::llm::LlmClient::new(provider.clone())
+                        {
+                            let storage = state.storage.clone();
+                            // 生成期间暂停截图监听
+                            let watch_handle = { state.watch.lock().clone() };
+                            if let Some(h) = watch_handle.as_ref() {
+                                if h.is_running() {
+                                    h.pause();
+                                }
+                            }
+                            let result =
+                                report_assistant_core::profile::run_dream(&storage, &llm).await;
+                            let watch_handle2 = { state.watch.lock().clone() };
+                            if let Some(h) = watch_handle2.as_ref() {
+                                if h.is_running() {
+                                    h.resume();
+                                }
+                            }
+                            match result {
+                                Ok(st) => {
+                                    tracing::info!(
+                                        "做梦完成：新增/更新 {}，小结 {}，过期 {}",
+                                        st.merged,
+                                        st.summarized,
+                                        st.archived
+                                    );
+                                    let _ = app.emit("dream-done", &st);
+                                }
+                                Err(e) => tracing::warn!("做梦失败: {e}"),
+                            }
+                        }
+                    }
+                }
+            }
+
+            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+        }
+    });
+}
+
 /// 启动时检查 auto_start：开启且 LLM 已配置则自动启用监听。
 /// 延迟 1.5s 让 webview 先初始化，避免 watch-event 早于前端订阅丢事件。
 /// 同时把系统级开机自启状态同步为配置期望值。
