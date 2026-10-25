@@ -9,7 +9,7 @@ import Timeline from './pages/Timeline';
 import ReportsHub from './pages/ReportsHub';
 import Stats from './pages/Stats';
 import Team from './pages/Team';
-import Settings from './pages/Settings';
+import Settings from './pages/settings';
 import Manual from './pages/Manual';
 import Todos from './pages/Todos';
 import Plan from './pages/Plan';
