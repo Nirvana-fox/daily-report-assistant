@@ -34,6 +34,7 @@ pub mod paths;
 pub mod privacy;
 pub mod profile;
 pub mod push;
+pub mod secrets;
 pub mod screenshot;
 pub mod storage;
 pub mod templates;

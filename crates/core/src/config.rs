@@ -870,6 +870,9 @@ fn sanitize_provider_urls(cfg: &mut Config) {
 }
 
 /// 加载配置；不存在时返回默认值并不报错。
+///
+/// API 密钥不落明文：启动时把旧的明文密钥迁移进系统凭据库并重写配置文件；
+/// 之后每次启动从凭据库水合到内存。凭据库不可用时保留旧行为（仅内存持有）。
 pub fn load() -> Result<Config> {
     let path = paths::config_path()?;
     if !path.exists() {
@@ -882,7 +885,44 @@ pub fn load() -> Result<Config> {
     let mut cfg: Config = serde_yaml::from_str(&raw)?;
     sanitize_provider_urls(&mut cfg);
     apply_env_overrides(&mut cfg);
+    hydrate_and_migrate_keys(&mut cfg, &path);
     Ok(cfg)
+}
+
+/// 密钥水合 + 明文迁移：
+/// - provider 带明文密钥 → 写入系统凭据库，并把配置文件重写为擦除版；
+/// - provider 密钥为空 → 尝试从凭据库水合；
+/// - 凭据库不可用 → 保持原样（兼容），仅记录日志。
+fn hydrate_and_migrate_keys(cfg: &mut Config, path: &std::path::Path) {
+    let mut migrated = false;
+    for p in cfg.llm.providers.iter_mut() {
+        if !p.api_key.trim().is_empty() {
+            match crate::secrets::store(&p.id, &p.api_key) {
+                Ok(true) => migrated = true,
+                Ok(false) => {}
+                Err(e) => tracing::warn!("密钥迁入系统凭据库失败（保留配置文件原样）: {e}"),
+            }
+        } else if let Ok(Some(k)) = crate::secrets::load(&p.id) {
+            p.api_key = k;
+        }
+    }
+    if migrated {
+        // 用擦除密钥后的副本立即重写 yaml，杜绝明文留存
+        let mut clean = cfg.clone();
+        for p in clean.llm.providers.iter_mut() {
+            p.api_key = String::new();
+        }
+        match serde_yaml::to_string(&clean) {
+            Ok(yaml) => {
+                if let Err(e) = std::fs::write(path, yaml) {
+                    tracing::warn!("重写配置文件（擦除密钥）失败: {e}");
+                } else {
+                    tracing::info!("API 密钥已迁移至系统凭据库，配置文件不再保存明文");
+                }
+            }
+            Err(e) => tracing::warn!("序列化擦除版配置失败: {e}"),
+        }
+    }
 }
 
 /// 把 REPORT_ASSISTANT_* 环境变量写到默认文本 provider 上。
@@ -921,7 +961,27 @@ pub fn save_to(cfg: &Config, path: &Path) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let yaml = serde_yaml::to_string(cfg)?;
+
+    // 密钥进系统凭据库；yaml 一律写擦除版（凭据库不可用时回退明文，保持可用性）
+    let mut vault_ok = true;
+    for p in &cfg.llm.providers {
+        if p.api_key.trim().is_empty() {
+            let _ = crate::secrets::delete(&p.id);
+        } else if let Err(e) = crate::secrets::store(&p.id, &p.api_key) {
+            vault_ok = false;
+            tracing::warn!("密钥写入系统凭据库失败，本次将回退为配置文件保存: {e}");
+        }
+    }
+
+    let yaml = if vault_ok {
+        let mut clean = cfg.clone();
+        for p in clean.llm.providers.iter_mut() {
+            p.api_key = String::new();
+        }
+        serde_yaml::to_string(&clean)?
+    } else {
+        serde_yaml::to_string(cfg)?
+    };
     std::fs::write(path, yaml)?;
     Ok(())
 }

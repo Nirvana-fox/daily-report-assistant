@@ -169,7 +169,11 @@ export default function ModelTab({ ctx }: SettingsCtxProps) {
                     })
                   }
                   placeholder="sk-..."
+                  autoComplete="off"
                 />
+                <p className="hint">
+                  密钥由系统凭据库加密保存（Windows 凭据管理器），配置文件不再存明文；留空保存即沿用已有密钥。
+                </p>
                 <Input
                   label="模型"
                   value={ctx.selectedProvider.model}
